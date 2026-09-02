@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# env
+.env
+.env*.local
+
+# sqlite (geliştirme veritabanı)
+dev.db
+dev.db-journal
+prisma/dev.db
+prisma/dev.db-journal

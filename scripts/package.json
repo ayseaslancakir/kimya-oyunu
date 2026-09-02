@@ -1,0 +1,9 @@
+{
+  "name": "kimya-pdf-araclari",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TYMM Kimya programı PDF'inden müfredat verisi çıkarma araçları",
+  "dependencies": {
+    "pdf-parse": "^1.1.1"
+  }
+}

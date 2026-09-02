@@ -1,0 +1,30 @@
+# Bağımlılıklar
+node_modules/
+
+# Next.js
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Ortam değişkenleri (asla commit etme!)
+.env
+.env*.local
+
+# Geliştirme veritabanı
+dev.db
+dev.db-journal
+web/dev.db
+web/dev.db-journal
+
+# Loglar ve test çerezleri
+*.log
+cookies*.txt
+cookies-*.txt
+
+# Şifre dosyaları (yerel PostgreSQL kurulumu)
+scripts/pgpass.txt
+
+# Büyük müfredat kaynak dosyaları (JSON yeterli — git'e girmez)
+data/curriculum/*.pdf
+data/curriculum/*_raw.txt

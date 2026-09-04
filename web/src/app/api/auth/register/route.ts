@@ -10,7 +10,7 @@ const schema = z.object({
     .max(20, "Kullanıcı adı en fazla 20 karakter olmalı")
     .regex(/^[a-zA-Z0-9_çğıöşüÇĞİÖŞÜ]+$/, "Kullanıcı adı sadece harf, rakam ve _ içerebilir"),
   email: z.string().email("Geçerli bir e-posta girin"),
-  password: z.string().min(6, "Şifre en az 6 karakter olmalı").max(72),
+  password: z.string().min(8, "Şifre en az 8 karakter olmalı").max(72),
   role: z.enum(["student", "teacher"]).default("student"),
   gradeLevel: z.number().int().min(9).max(12).optional().nullable(),
 });

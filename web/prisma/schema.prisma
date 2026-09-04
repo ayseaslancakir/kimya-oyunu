@@ -1,6 +1,6 @@
 // ============================================================
 // Kimya Oyunu — Veritabanı Şeması (TYMM müfredatı temelli)
-// Geliştirme: SQLite · Yayın: PostgreSQL (provider değiştirilir)
+// Geliştirme ve yayın: PostgreSQL (yerel veya Neon)
 // Detay: docs/03-teknoloji-ve-mimari.md
 // ============================================================
 
@@ -236,10 +236,11 @@ model DuelPlayer {
   duel     Duel     @relation(fields: [duelId], references: [id])
   userId   Int
   user     User     @relation(fields: [userId], references: [id])
-  score    Int      @default(0)
-  dogru    Int      @default(0)
-  finished Boolean  @default(false)
-  joinedAt DateTime @default(now())
+  score       Int      @default(0)
+  dogru       Int      @default(0)
+  finished    Boolean  @default(false)
+  answeredIds String   @default("[]") // JSON: cevaplanan soru id listesi
+  joinedAt    DateTime @default(now())
 
   @@unique([duelId, userId])
 }

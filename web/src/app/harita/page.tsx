@@ -42,7 +42,7 @@ export default async function HaritaPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-3xl font-black">Müfredat Haritası</h1>
           <p className="mt-1 text-slate-400">

@@ -3,10 +3,15 @@ import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
 
 export const SESSION_COOKIE = "kimya_token";
+const FALLBACK_SECRET = "degistir-beni-en-az-32-karakterlik-rastgele-bir-anahtar";
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || "degistir-beni-en-az-32-karakterlik-rastgele-bir-anahtar"
-);
+function jwtSecretBytes(): Uint8Array {
+  const raw = process.env.JWT_SECRET;
+  if (process.env.NODE_ENV === "production" && (!raw || raw === FALLBACK_SECRET || raw.length < 32)) {
+    throw new Error("JWT_SECRET üretimde en az 32 karakter olmalı");
+  }
+  return new TextEncoder().encode(raw && raw.length >= 16 ? raw : FALLBACK_SECRET);
+}
 
 export type SessionUser = {
   id: number;
@@ -27,13 +32,13 @@ export async function createSessionToken(user: SessionUser): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(String(user.id))
     .setIssuedAt()
-    .setExpirationTime("30m")
-    .sign(secret);
+    .setExpirationTime("7d")
+    .sign(jwtSecretBytes());
 }
 
 export async function verifySessionToken(token: string): Promise<SessionUser | null> {
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, jwtSecretBytes());
     if (!payload.sub) return null;
     return {
       id: Number(payload.sub),

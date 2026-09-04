@@ -57,6 +57,10 @@ export default function KayitPage() {
     <main className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-12">
       <h1 className="text-3xl font-black">Kayıt Ol</h1>
       <p className="mt-1 text-slate-400">Kimya yolculuğuna başla — ilerlemen kaydedilsin.</p>
+      <p className="mt-2 text-xs text-slate-500">
+        Öğretmen hesabı sınıf ve soru bankası içindir. Öğrenciysen “Öğrenci” seç.
+        Veri kullanımı: <Link href="/gizlilik" className="text-cyan-400 hover:underline">gizlilik notu</Link>.
+      </p>
 
       <form onSubmit={onSubmit} className="mt-8 grid gap-4">
         <label className="grid gap-1.5">
@@ -82,13 +86,13 @@ export default function KayitPage() {
         </label>
 
         <label className="grid gap-1.5">
-          <span className="text-sm font-medium text-slate-300">Şifre</span>
+          <span className="text-sm font-medium text-slate-300">Şifre (en az 8 karakter)</span>
           <input
             type="password"
             value={form.password}
             onChange={(e) => set("password", e.target.value)}
             required
-            minLength={6}
+            minLength={8}
             className={inputCls}
           />
         </label>

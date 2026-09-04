@@ -55,6 +55,9 @@ export default function KacisOdasi({
   const [saving, setSaving] = useState(false);
 
   const cevapVerildi = useRef(false);
+  const dogruRef = useRef(0);
+  const timeLeftRef = useRef(SURE);
+  const ipucuCezaRef = useRef(0);
 
   useEffect(() => {
     fetch(`/api/quiz/questions?unitId=${unitId}&limit=${TOPLAM_SORU}`)
@@ -71,9 +74,8 @@ export default function KacisOdasi({
   const bitir = useCallback(
     async (kazandi: boolean) => {
       setSaving(true);
-      // puan: her doğru 100 + kalan süre bonusu (başarılıysa)
-      const zamanBonus = kazandi ? timeLeft * 2 : 0;
-      const finalPuan = dogru * 100 + zamanBonus;
+      const zamanBonus = kazandi ? timeLeftRef.current * 2 : 0;
+      const finalPuan = Math.max(0, dogruRef.current * 100 + zamanBonus - ipucuCezaRef.current);
       const soruSayisi = questions.length || TOPLAM_SORU;
       try {
         const res = await fetch("/api/quiz/finish", {
@@ -83,9 +85,9 @@ export default function KacisOdasi({
             unitId,
             mode: "kacis_odasi",
             score: finalPuan,
-            accuracy: soruSayisi > 0 ? dogru / soruSayisi : 0,
+            accuracy: soruSayisi > 0 ? dogruRef.current / soruSayisi : 0,
             maxStreak: 0,
-            durationSec: SURE - timeLeft,
+            durationSec: SURE - timeLeftRef.current,
           }),
         });
         const data = await res.json();
@@ -96,13 +98,16 @@ export default function KacisOdasi({
         setSaving(false);
       }
     },
-    [unitId, dogru, timeLeft]
+    [unitId, questions.length]
   );
 
   const baslat = useCallback(() => {
     setIndex(0);
     setCan(CAN);
     setDogru(0);
+    dogruRef.current = 0;
+    ipucuCezaRef.current = 0;
+    timeLeftRef.current = SURE;
     setTimeLeft(SURE);
     setSelected(null);
     setFeedback(null);
@@ -120,7 +125,13 @@ export default function KacisOdasi({
       bitir(false);
       return;
     }
-    const t = setTimeout(() => setTimeLeft((v) => v - 1), 1000);
+    const t = setTimeout(() => {
+      setTimeLeft((v) => {
+        const next = v - 1;
+        timeLeftRef.current = next;
+        return next;
+      });
+    }, 1000);
     return () => clearTimeout(t);
   }, [timeLeft, asama, sonuc, bitir]);
 
@@ -139,7 +150,11 @@ export default function KacisOdasi({
         const dogruCevap = data.correct === true;
         setFeedback({ correct: dogruCevap, correctOptionId: data.correctOptionId ?? null });
         if (dogruCevap) {
-          setDogru((d) => d + 1);
+          setDogru((d) => {
+            const next = d + 1;
+            dogruRef.current = next;
+            return next;
+          });
         } else {
           setCan((c) => {
             const yeni = c - 1;
@@ -161,6 +176,7 @@ export default function KacisOdasi({
     cevapVerildi.current = false;
     setSelected(null);
     setFeedback(null);
+    setIpucuKullanildi(false);
     if (index + 1 >= questions.length) {
       setKactiMi(true);
       setAsama("sonuc");
@@ -308,10 +324,13 @@ export default function KacisOdasi({
           </span>
           {!ipucuKullanildi && feedback === null && (
             <button
-              onClick={() => setIpucuKullanildi(true)}
+              onClick={() => {
+                setIpucuKullanildi(true);
+                ipucuCezaRef.current += 50;
+              }}
               className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/30"
             >
-              💡 İpucu (50 puan)
+              İpucu (−50 puan)
             </button>
           )}
         </div>

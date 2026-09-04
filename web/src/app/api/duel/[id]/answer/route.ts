@@ -45,6 +45,26 @@ export async function POST(
     return NextResponse.json({ error: "Turu tamamladın" }, { status: 409 });
   }
 
+  let allowedIds: number[] = [];
+  try {
+    allowedIds = JSON.parse(duel.questionIds) as number[];
+  } catch {
+    return NextResponse.json({ error: "Düello soruları bozuk" }, { status: 500 });
+  }
+  if (!allowedIds.includes(parsed.data.questionId)) {
+    return NextResponse.json({ error: "Bu soru bu düelloda yok" }, { status: 400 });
+  }
+
+  let answered: number[] = [];
+  try {
+    answered = JSON.parse(ben.answeredIds || "[]") as number[];
+  } catch {
+    answered = [];
+  }
+  if (answered.includes(parsed.data.questionId)) {
+    return NextResponse.json({ error: "Bu soruyu zaten cevapladın" }, { status: 409 });
+  }
+
   const question = await prisma.question.findUnique({
     where: { id: parsed.data.questionId },
     include: { options: true, outcome: true },
@@ -78,13 +98,14 @@ export async function POST(
     },
   });
 
-  // Düello skorunu güncelle
-  if (correct) {
-    await prisma.duelPlayer.update({
-      where: { id: ben.id },
-      data: { score: { increment: 100 }, dogru: { increment: 1 } },
-    });
-  }
+  answered.push(parsed.data.questionId);
+  await prisma.duelPlayer.update({
+    where: { id: ben.id },
+    data: {
+      answeredIds: JSON.stringify(answered),
+      ...(correct ? { score: { increment: 100 }, dogru: { increment: 1 } } : {}),
+    },
+  });
 
   return NextResponse.json({
     correct,

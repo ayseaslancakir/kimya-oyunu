@@ -8,7 +8,7 @@ const schema = z.object({
   mode: z
     .enum(["quiz_arena", "hiz_yarisi", "bulmaca", "kacis_odasi", "sanal_lab", "duel"])
     .default("quiz_arena"),
-  score: z.number().int().min(0),
+  score: z.number().int().min(0).max(20_000),
   accuracy: z.number().min(0).max(1),
   maxStreak: z.number().int().min(0),
   durationSec: z.number().int().min(0),

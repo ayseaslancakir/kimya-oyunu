@@ -1,106 +1,72 @@
-# 🧪 Kimya Oyunu — TYMM Müfredatına Dayalı Eğitici Web Oyunu
+# Kimya Oyunu — TYMM müfredatına dayalı eğitici web oyunu
 
-> **Türkiye Yüzyılı Maarif Modeli (TYMM)** Kimya Dersi Öğretim Programı'na (9-10-11-12. sınıf) birebir bağlı, web tabanlı, kullanıcı hesaplı ve oyuncu verilerini kaydeden eğitici oyun platformu.
+Türkiye Yüzyılı Maarif Modeli (TYMM) Kimya Dersi Öğretim Programı’na (9–12) bağlı, hesaplı ve skor kaydeden web oyunu.
 
----
+**Ayşe:** geliştirmeye devam etmek için önce `docs/06-ayse-yapay-zeka-rehberi.md` dosyasını oku. Yapay zekâya ne söyleyeceğin orada, kopyalanacak metinlerle duruyor.
 
-## ✅ Teknolojiler ve Tasarım
+## Teknoloji
 
-| Karar | Seçim |
-|-------|-------|
-| Çatı | **Next.js 15 (App Router) + React 19 + TypeScript** (full-stack) |
+| Katman | Seçim |
+|--------|--------|
+| Çatı | Next.js 15 (App Router) + React 19 + TypeScript |
 | Stil | Tailwind CSS v4 |
-| Veritabanı | **Prisma** + **PostgreSQL** (yerel geliştirme) → Neon (yayın) |
-| Kimlik | JWT (jose) + bcryptjs, httpOnly çerez |
-| Oyun modları | 🏆 Quiz Arena · ⚡ Hız Yarışı · 🧩 Bulmaca · 🚪 Kaçış Odası · 🔬 Sanal Lab · ⚔️ Canlı Düello |
-| Öğretmen paneli | Sınıf yönetimi + öğrenci raporları + soru bankası |
+| Veri | Prisma + PostgreSQL |
+| Kimlik | JWT (`jose`) + bcryptjs, httpOnly çerez |
+| Modlar | Quiz Arena · Hız Yarışı · Bulmaca · Kaçış Odası · Sanal Lab · Canlı Düello |
 
-## 🚀 Kurulum (bu makinede tamamlandı)
+## Kurulum
 
-> ✅ Node.js 24.19 LTS (`C:\nodejs`) · Git 2.55 (`C:\git`) · PostgreSQL 18 (Windows hizmeti `postgresql-x64-18`, DB: `kimya`)
-> Uygulama şu an **yerel PostgreSQL** üzerinde çalışıyor. Yayın rehberi: `docs/05-yayin-rehberi.md`
+1. Node.js LTS ve PostgreSQL kurulu olsun (`node --version`, veritabanı `kimya`).
+2. `web/.env.example` dosyasını `web/.env` olarak kopyala. `DATABASE_URL` ve `JWT_SECRET` (en az 32 karakter) doldur.
+3. Komutlar:
 
-**Geliştirme sunucusu:**
 ```powershell
-.\tools\run.cmd C:\nodejs\npm.cmd run dev
-```
-Tarayıcıda: `http://localhost:3000` · API: `http://localhost:3000/api/health`
-
-**Yeni makinede kurulum:**
-1. Node.js + PostgreSQL kur (yerel Postgres için: `initdb` ile veri dizini + `scripts\pgsql-start.cmd`)
-2. `web/` içinde: `npm install`
-3. `.env.example`'dan `.env` oluştur → `DATABASE_URL` + `JWT_SECRET` düzenle
-4. Migration + seed:
-   ```powershell
-   npm run db:migrate          # şema kurar
-   npm run db:seed             # müfredat (93 öğrenme çıktısı)
-   npm run db:seed-questions   # örnek soru bankası
-   ```
-
-## 🗺️ Sayfalar
-
-| Adres | Açıklama |
-|-------|----------|
-| `/` | Tanıtım + 6 oyun modu |
-| `/kayit` · `/giris` | Kayıt (öğrenci/öğretmen) · Giriş |
-| `/harita` | Müfredat haritası (sınıf→tema→ünite) + ilerleme |
-| `/oyun/quiz?unitId=X` | 🏆 Quiz Arena |
-| `/oyun/hiz` | ⚡ Hız Yarışı |
-| `/oyun/bulmaca` | 🧩 Bulmaca Krallığı |
-| `/oyun/kacis?unitId=X` | 🚪 Lab Kaçış Odası |
-| `/oyun/lab` | 🔬 Sanal Laboratuvar |
-| `/oyun/duel` · `/oyun/duel/katil` | ⚔️ Canlı Düello (kur / kodla katıl) |
-| `/liderlik` | 🏆 Liderlik tablosu |
-| `/koleksiyon` | 🧫 Element koleksiyonu + rozetler |
-| `/panel` | 🛠️ Öğretmen paneli |
-| `/panel/sinif/[id]` | Sınıf detayı + raporlar |
-| `/panel/sorular` | 📝 Soru bankası yönetimi |
-| `/sinif` | Öğrenci sınıfları + davet koduyla katılım |
-
-## 📂 Proje Yapısı
-
-```
-odev2/
-├── README.md                      ← bu dosya
-├── docs/                          ← araştırma, plan ve yayın dokümanları
-│   ├── 01-tymm-mufredat-arastirmasi.md
-│   ├── 02-oyun-modelleri-10-tarz.md
-│   ├── 03-teknoloji-ve-mimari.md
-│   ├── 04-faz-plani-ve-yol-haritasi.md
-│   └── 05-yayin-rehberi.md        ← GitHub + Vercel + Neon yayını
-├── data/curriculum/               ← TYMM müfredatı (tymm_kimya_2026.json — 93 çıktı)
-├── scripts/                       ← PDF araçları, API testleri, pgsql yardımcıları
-├── tools/run.cmd                  ← PATH sarmalayıcı (node'u PATH'e ekler)
-└── web/                           ← Next.js uygulaması (full-stack)
-    ├── prisma/schema.prisma       ← veritabanı şeması (12+ model)
-    ├── prisma/migrations/         ← PostgreSQL migration'ları
-    ├── prisma/seed.ts             ← müfredat + modlar + rozetler
-    ├── prisma/seed-questions.ts   ← örnek sorular
-    └── src/                       ← app (sayfalar + API) · components · lib · data
+cd web
+npm install
+npx prisma migrate deploy
+npm run db:seed
+npm run db:seed-questions
+npm run dev
 ```
 
-## 📖 Dokümanlar
+Tarayıcı: `http://localhost:3000` · sağlık: `http://localhost:3000/api/health`
 
-1. **Müfredat Araştırması** — TYMM kimya programının yapısı, resmi kaynaklar.
-2. **10 Oyun Tarzı** — araştırma + kararlaştırılan mod seti.
-3. **Teknoloji ve Mimari** — Next.js mimarisi, veritabanı şeması, API tasarımı.
-4. **Faz Planı** — Faz 0 → 4 yol haritası.
-5. **Yayın Rehberi** — GitHub + Vercel + Neon ile canlıya alma.
+PATH yüzünden `npm` bulunamazsa proje kökünden: `.\tools\run.cmd npm run dev` (`web` dizininde çalışacak şekilde ayarla).
 
-## 📍 Güncel Durum
+## Sayfalar
 
-| Faz | Durum |
-|-----|-------|
-| Faz 0 — Ön hazırlık (araştırma + kararlar) | ✅ Tamamlandı |
-| Müfredat verisi çıkarma (resmi PDF → JSON) | ✅ Tamamlandı (93 çıktı, 20 ünite, 12 tema) |
-| Faz 1 — Hesap + Quiz Arena | ✅ Tamamlandı |
-| Faz 2 — Hız Yarışı + Bulmaca + liderlik + rozet + koleksiyon | ✅ Tamamlandı |
-| Faz 3 — Öğretmen paneli + Kaçış Odası | ✅ Tamamlandı |
-| Faz 4 — Sanal Lab + soru aracı + Canlı Düello | ✅ Tamamlandı |
-| PostgreSQL geçişi | ✅ Tamamlandı (yerel PG 18 hizmet olarak çalışıyor) |
-| **Vercel + Neon yayını** | ⏳ Kullanıcı hesabı gerekli → `docs/05-yayin-rehberi.md` |
+| Adres | Ne işe yarar |
+|-------|----------------|
+| `/` | Tanıtım, müfredat ızgarası, modlar |
+| `/kayit` · `/giris` | Hesap |
+| `/harita` | Sınıf → tema → ünite + ustalık |
+| `/oyun/quiz?unitId=` | Quiz Arena |
+| `/oyun/hiz` | Hız yarışı |
+| `/oyun/bulmaca` | Eşleştirme |
+| `/oyun/kacis?unitId=` | Kaçış odası |
+| `/oyun/lab` | Sanal laboratuvar |
+| `/oyun/duel` | Düello kur / katıl |
+| `/liderlik` · `/koleksiyon` | Sıralama ve kartlar |
+| `/panel` | Öğretmen |
+| `/sinif` | Öğrenci katılımı |
+| `/gizlilik` | Kısa gizlilik notu |
 
-## 🚀 Sonraki Adım
+## Klasörler
 
-1. `docs/05-yayin-rehberi.md`'yi takip et: Neon hesabı → GitHub'a push → Vercel import (~20 dk).
-2. Yayın sonrası soru bankasını genişlet (tüm ünitelere soru üretimi).
+```
+kimya-oyunu/
+├── README.md
+├── docs/                 araştırma, faz planı, yayın, Ayşe rehberi
+├── data/curriculum/      TYMM JSON (93 öğrenme çıktısı)
+├── scripts/              API denemeleri, müfredat araçları
+├── tools/run.cmd
+└── web/                  Next.js uygulaması
+    ├── prisma/
+    └── src/              app, components, lib, data
+```
+
+## Durum
+
+İskelet ve altı mod **oynanabilir**. Asıl açık: soru bankası dar (çoğu örnek 9. sınıf Tema 1), bazı modlar henüz tam “oyun” değil quiz/hikâye karışımı. Yayın: Vercel + Neon — `docs/05-yayin-rehberi.md`.
+
+Sıradaki iş listesi ve yapay zekâ komutları: **`docs/06-ayse-yapay-zeka-rehberi.md`**.

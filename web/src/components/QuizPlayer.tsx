@@ -41,12 +41,16 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
   const [saving, setSaving] = useState(false);
   const [sonuc, setSonuc] = useState<{
     xp: number;
+    score?: number;
     achievements?: { slug: string; name: string; icon: string }[];
     element?: { symbol: string; name: string; number: number } | null;
   } | null>(null);
 
   const startTime = useRef(Date.now());
   const answered = useRef(false);
+  const scoreRef = useRef(0);
+  const dogruRef = useRef(0);
+  const maxStreakRef = useRef(0);
 
   useEffect(() => {
     fetch(`/api/quiz/questions?unitId=${unitId}&limit=10`)
@@ -78,13 +82,25 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
 
         setFeedback(data);
         if (data.correct) {
-          setDogru((d) => d + 1);
+          setDogru((d) => {
+            const next = d + 1;
+            dogruRef.current = next;
+            return next;
+          });
           setStreak((s) => {
             const yeni = s + 1;
-            setMaxStreak((m) => Math.max(m, yeni));
+            setMaxStreak((m) => {
+              const next = Math.max(m, yeni);
+              maxStreakRef.current = next;
+              return next;
+            });
             return yeni;
           });
-          setScore((s) => s + 100 + (streak + 1) * 10);
+          setScore((s) => {
+            const next = s + 100 + (streak + 1) * 10;
+            scoreRef.current = next;
+            return next;
+          });
         } else {
           setStreak(0);
         }
@@ -128,9 +144,10 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           unitId,
-          score,
-          accuracy: questions.length > 0 ? dogru / questions.length : 0,
-          maxStreak,
+          mode: "quiz_arena",
+          score: scoreRef.current,
+          accuracy: questions.length > 0 ? dogruRef.current / questions.length : 0,
+          maxStreak: maxStreakRef.current,
           durationSec,
         }),
       });
@@ -141,7 +158,7 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
     } finally {
       setSaving(false);
     }
-  }, [unitId, score, dogru, questions.length, maxStreak]);
+  }, [unitId, questions.length]);
 
   // ---------- Görünümler ----------
   if (loading) {
@@ -185,7 +202,9 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
 
           {sonuc && (
             <p className="mt-4 text-sm text-slate-400">
-              Kazanılan XP: <span className="font-bold text-emerald-400">{sonuc.xp}</span>
+            Kazanılan XP: <span className="font-bold text-emerald-400">{sonuc.score}</span>
+            {" · "}
+            Toplam XP: <span className="font-bold text-cyan-400">{sonuc.xp}</span>
             </p>
           )}
 

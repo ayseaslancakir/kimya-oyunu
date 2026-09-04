@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { shuffle } from "@/data/elements";
 
 const schema = z.object({
   unitId: z.number().int(),
@@ -28,19 +29,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ünite bulunamadı" }, { status: 404 });
   }
 
-  const questions = await prisma.question.findMany({
+  const pool = await prisma.question.findMany({
     where: { outcome: { unitId: unit.id } },
-    orderBy: { id: "asc" },
-    take: SORU_SAYISI,
     select: { id: true },
   });
+  const questions = shuffle(pool).slice(0, SORU_SAYISI);
   if (questions.length < 3) {
     return NextResponse.json({
       error: "Bu ünitede düello için yeterli soru yok (en az 3 soru gerekli)",
     }, { status: 400 });
   }
 
-  // Benzersiz kod üret
   let code = "";
   for (let deneme = 0; deneme < 10; deneme++) {
     code = Array.from({ length: 6 }, () =>

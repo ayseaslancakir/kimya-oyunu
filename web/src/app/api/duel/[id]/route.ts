@@ -34,16 +34,17 @@ export async function GET(
     return NextResponse.json({ error: "Bu düellonun oyuncusu değilsin" }, { status: 403 });
   }
 
-  // Soruları sabitlenen listeden getir (doğru cevaplar GİZLİ)
+  // Soruları sabitlenen listeden getir — sıra questionIds ile aynı kalsın
   const questionIds = JSON.parse(duel.questionIds) as number[];
-  const questions = await prisma.question.findMany({
+  const found = await prisma.question.findMany({
     where: { id: { in: questionIds } },
     include: {
       options: { orderBy: { orderIndex: "asc" }, select: { id: true, text: true } },
       outcome: { select: { code: true } },
     },
-    orderBy: { id: "asc" },
   });
+  const byId = new Map(found.map((q) => [q.id, q]));
+  const questions = questionIds.map((qid) => byId.get(qid)).filter((q): q is NonNullable<typeof q> => Boolean(q));
 
   return NextResponse.json({
     duel: {
@@ -68,6 +69,7 @@ export async function GET(
     })),
     me: {
       userId: ben.userId,
+      username: ben.user.username,
       score: ben.score,
       dogru: ben.dogru,
       finished: ben.finished,

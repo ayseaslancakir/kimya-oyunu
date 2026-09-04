@@ -28,6 +28,10 @@ export default function HizYarisi() {
   const [saving, setSaving] = useState(false);
 
   const cevapVerildi = useRef(false);
+  const scoreRef = useRef(0);
+  const dogruRef = useRef(0);
+  const toplamRef = useRef(0);
+  const maxStreakRef = useRef(0);
 
   const yeniSoru = useCallback(() => {
     const element = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
@@ -43,65 +47,82 @@ export default function HizYarisi() {
     setMaxStreak(0);
     setDogru(0);
     setToplam(0);
+    scoreRef.current = 0;
+    dogruRef.current = 0;
+    toplamRef.current = 0;
+    maxStreakRef.current = 0;
     setTimeLeft(SURE);
     setSonuc(null);
     yeniSoru();
     setAsama("oyun");
   }, [yeniSoru]);
 
-  const bitir = useCallback(
-    async (accuracy: number, s: number) => {
-      setSaving(true);
-      try {
-        const res = await fetch("/api/quiz/finish", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            unitId: null,
-            mode: "hiz_yarisi",
-            score: s,
-            accuracy,
-            maxStreak: maxStreak,
-            durationSec: SURE,
-          }),
-        });
-        const data = await res.json();
-        if (res.ok) setSonuc(data);
-      } catch {
-        // skor kaydı başarısız olsa bile bitiş ekranı gösterilir
-      } finally {
-        setSaving(false);
-      }
-    },
-    [maxStreak]
-  );
+  const bitir = useCallback(async () => {
+    setSaving(true);
+    const accuracy = toplamRef.current > 0 ? dogruRef.current / toplamRef.current : 0;
+    try {
+      const res = await fetch("/api/quiz/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          unitId: null,
+          mode: "hiz_yarisi",
+          score: scoreRef.current,
+          accuracy,
+          maxStreak: maxStreakRef.current,
+          durationSec: SURE,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) setSonuc(data);
+    } catch {
+      // skor kaydı başarısız olsa bile bitiş ekranı gösterilir
+    } finally {
+      setSaving(false);
+    }
+  }, []);
 
   // Geri sayım
   useEffect(() => {
     if (asama !== "oyun" || sonuc) return;
     if (timeLeft <= 0) {
-      const accuracy = toplam > 0 ? dogru / toplam : 0;
       setAsama("bitis");
-      bitir(accuracy, score);
+      bitir();
       return;
     }
     const t = setTimeout(() => setTimeLeft((v) => v - 1), 1000);
     return () => clearTimeout(t);
-  }, [timeLeft, asama, sonuc, toplam, dogru, score, bitir]);
+  }, [timeLeft, asama, sonuc, bitir]);
 
   function cevapla(isim: string) {
     if (!soru || cevapVerildi.current || asama !== "oyun") return;
     cevapVerildi.current = true;
-    setToplam((t) => t + 1);
+    setToplam((t) => {
+      const next = t + 1;
+      toplamRef.current = next;
+      return next;
+    });
 
     if (isim === soru.element.name) {
-      setDogru((d) => d + 1);
+      setDogru((d) => {
+        const next = d + 1;
+        dogruRef.current = next;
+        return next;
+      });
       setStreak((s) => {
         const yeni = s + 1;
-        setMaxStreak((m) => Math.max(m, yeni));
+        setMaxStreak((m) => {
+          const next = Math.max(m, yeni);
+          maxStreakRef.current = next;
+          return next;
+        });
         return yeni;
       });
-      setScore((s) => s + 50 + streak * 10);
+      setScore((s) => {
+        const next = s + 50 + streak * 10;
+        scoreRef.current = next;
+        return next;
+      });
     } else {
       setStreak(0);
     }

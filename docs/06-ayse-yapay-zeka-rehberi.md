@@ -1,6 +1,6 @@
 # Ayşe için geliştirme rehberi
 
-Bu dosya **senin** içindir. **Yazılımcı değilsin** — terminal, Git, Prisma gibi kelimeleri ezberleme. Her şeyi **Cursor sohbetine yapıştır**, o yapsın. Sen oyunu tarayıcıda dene, kimya doğruluğunu kontrol et, öğretmene göster.
+Bu dosya **senin** içindir. **Yazılımcı değilsin** — terminal, Git, Prisma gibi kelimeleri ezberleme. Her şeyi **yapay zekâ sohbetine yapıştır**, o yapsın. Sen oyunu tarayıcıda dene, kimya doğruluğunu kontrol et, öğretmene göster.
 
 Proje: TYMM (9–12) kimya müfredatına bağlı, kayıtlı bir web oyunu. Hedef: lise öğrencisi 10 dakika oynayıp “yarın yine girerim” desin; öğretmen zayıf üniteyi görsün.
 
@@ -29,7 +29,7 @@ Proje: TYMM (9–12) kimya müfredatına bağlı, kayıtlı bir web oyunu. Hedef
 
 **http://localhost:3000 tek başına açılmaz.** Önce sunucu + veritabanı lazım.
 
-### Cursor’a yapıştır (en kolay — tek komut)
+### Yapay zekâya yapıştır (en kolay — tek komut)
 
 ```
 Kimya oyunu projesini bilgisayarımda çalıştır.
@@ -58,7 +58,7 @@ Kayıt olmayı test et. Hata olursa düzelt.
 
 ### Sık hatalar
 
-| Ekranda ne görürsün | Ne demek | Cursor'a ne yaz |
+| Ekranda ne görürsün | Ne demek | Yapay zekâya ne yaz |
 |---------------------|----------|-----------------|
 | Site açılmıyor | Sunucu çalışmıyor | `npm run dev çalıştır` |
 | Sunucuya ulaşılamadı / Veritabanına bağlanılamadı | DB kurulmamış | `npm run setup:local çalıştır` |
@@ -69,7 +69,7 @@ Kayıt olmayı test et. Hata olursa düzelt.
 
 ## 0b) Her gün nasıl çalışırsın (5 dakika)
 
-1. **Cursor’u aç**, proje klasörünü seç (`kimya-oyunu`).
+1. **Kod editörünü aç**, proje klasörünü seç (`kimya-oyunu`).
 2. Sohbete yapıştır:
 
 ```
@@ -79,20 +79,20 @@ npm run dev:oyun ile oyunu başlat.
 ```
 
 3. Tarayıcıda değişikliği dene.
-4. İş bitince Cursor'a:
+4. İş bitince yapay zekâya:
 
 ```
 Yaptığımız değişiklikleri GitHub'a gönder (commit + push).
 Kısa commit mesajı yaz.
 ```
 
-Sen `git` komutlarını elle yazma — Cursor yapsın.
+Sen `git` komutlarını elle yazma — yapay zekâ yapsın.
 
 ---
 
 ## 0c) Takıldığında
 
-Cursor'a **ekran görüntüsü** veya **kırmızı hata yazısını** yapıştır. Şunu ekle:
+Yapay zekâya **ekran görüntüsü** veya **kırmızı hata yazısını** yapıştır. Şunu ekle:
 
 ```
 Yazılımcı değilim. Ne yapmam gerektiğini tek cümleyle söyle.
@@ -147,7 +147,7 @@ Kabul ölçütü: [öğrenci/öğretmen ne görünce bitti sayılır]
 
 **İyi cümle:** “Quiz’te aynı 10 soru hep aynı sırada gelmesin; sorular karışsın. Doğru şık id’si sızmasın. Bitince tarayıcıda iki tur oynayıp farklı sıra gördüğünü yaz.”
 
-Ajan bir dosyayı gereksiz yere silerse Cursor'a: `Son değişikliği geri al, sadece istediğim işi yap.`
+Ajan bir dosyayı gereksiz yere silerse yapay zekâya: `Son değişikliği geri al, sadece istediğim işi yap.`
 
 ---
 
@@ -297,7 +297,7 @@ Yerel test: `npm run setup:local` → `prisma/dev.db` oluşur (Git'e gitmez).
 
 ## 7. GitHub (sen elle yapma)
 
-Her iş bitince Cursor'a:
+Her iş bitince yapay zekâya:
 
 ```
 Değişiklikleri commit et ve GitHub'a push et.

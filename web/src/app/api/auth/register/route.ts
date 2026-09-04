@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const msg = (e as Error).message ?? "";
     if (msg.includes("Can't reach database server") || msg.includes("P1001") || msg.includes("Error code 14")) {
       return NextResponse.json(
-        { error: "Veritabanına bağlanılamadı. Cursor'a yaz: npm run setup:local çalıştır." },
+        { error: "Veritabanına bağlanılamadı. Önce: npm run setup:local" },
         { status: 503 }
       );
     }

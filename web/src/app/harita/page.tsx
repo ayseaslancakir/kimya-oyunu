@@ -21,7 +21,14 @@ export default async function HaritaPage() {
         include: {
           units: {
             orderBy: { orderIndex: "asc" },
-            include: { outcomes: { select: { id: true } } },
+            include: {
+              outcomes: {
+                select: {
+                  id: true,
+                  _count: { select: { questions: true } },
+                },
+              },
+            },
           },
         },
       },
@@ -53,6 +60,34 @@ export default async function HaritaPage() {
           <p className="text-2xl font-black text-cyan-400">{user?.xp ?? 0}</p>
           <p className="text-xs text-slate-400">Toplam XP</p>
         </div>
+      </div>
+
+      {/* Serbest modlar — müfredattan bağımsız */}
+      <div className="mt-6 flex flex-wrap gap-2">
+        <Link
+          href="/oyun/hiz"
+          className="rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-2 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20"
+        >
+          Hız Yarışı
+        </Link>
+        <Link
+          href="/oyun/bulmaca"
+          className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-sm font-semibold text-emerald-200 transition hover:bg-emerald-500/20"
+        >
+          Bulmaca
+        </Link>
+        <Link
+          href="/oyun/lab"
+          className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/20"
+        >
+          Sanal Lab
+        </Link>
+        <Link
+          href="/oyun/duel"
+          className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-2 text-sm font-semibold text-rose-200 transition hover:bg-rose-500/20"
+        >
+          Canlı Düello
+        </Link>
       </div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
@@ -96,36 +131,57 @@ export default async function HaritaPage() {
                           0
                         );
                         const ortMastery = uToplam > 0 ? Math.round(ort / uToplam) : 0;
+                        const soruSayisi = unit.outcomes.reduce((a, o) => a + o._count.questions, 0);
+                        const oynanabilir = soruSayisi >= 3;
 
                         return (
                           <div
                             key={unit.id}
-                            className="flex items-center justify-between gap-2 rounded-xl bg-slate-800/70 px-4 py-2.5"
+                            className={`flex items-center justify-between gap-2 rounded-xl px-4 py-2.5 ${
+                              oynanabilir ? "bg-slate-800/70" : "bg-slate-800/40 opacity-75"
+                            }`}
                           >
-                            <Link
-                              href={`/oyun/quiz?unitId=${unit.id}`}
-                              className="group flex flex-1 items-center justify-between"
-                            >
-                              <span className="text-sm font-medium group-hover:text-cyan-300">
-                                {unit.name}
-                                <span className="ml-2 text-xs text-slate-500">{uYuzde}%</span>
-                              </span>
-                              <span className="flex items-center gap-3">
-                                {ortMastery > 0 && (
-                                  <span className="text-xs text-slate-400">ustalık %{ortMastery}</span>
-                                )}
-                                <span className="rounded-full bg-cyan-500/20 px-2.5 py-0.5 text-xs font-bold text-cyan-300">
-                                  Oyna ▶
+                            {oynanabilir ? (
+                              <Link
+                                href={`/oyun/quiz?unitId=${unit.id}`}
+                                className="group flex flex-1 items-center justify-between"
+                              >
+                                <span className="text-sm font-medium group-hover:text-cyan-300">
+                                  {unit.name}
+                                  <span className="ml-2 text-xs text-slate-500">{uYuzde}%</span>
+                                  <span className="ml-2 text-xs text-cyan-500/80">{soruSayisi} soru</span>
                                 </span>
-                              </span>
-                            </Link>
-                            <Link
-                              href={`/oyun/kacis?unitId=${unit.id}`}
-                              title="Lab Kaçış Odası"
-                              className="rounded-lg border border-rose-500/30 px-2 py-1 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/15"
-                            >
-                              🚪
-                            </Link>
+                                <span className="flex items-center gap-3">
+                                  {ortMastery > 0 && (
+                                    <span className="text-xs text-slate-400">ustalık %{ortMastery}</span>
+                                  )}
+                                  <span className="rounded-full bg-cyan-500/20 px-2.5 py-0.5 text-xs font-bold text-cyan-300">
+                                    Quiz ▶
+                                  </span>
+                                </span>
+                              </Link>
+                            ) : (
+                              <div className="flex flex-1 items-center justify-between">
+                                <span className="text-sm font-medium text-slate-400">
+                                  {unit.name}
+                                  <span className="ml-2 text-xs text-amber-400/90">
+                                    {soruSayisi === 0 ? "Soru ekleniyor" : `${soruSayisi} soru (min 3)`}
+                                  </span>
+                                </span>
+                                <span className="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs text-slate-500">
+                                  Yakında
+                                </span>
+                              </div>
+                            )}
+                            {oynanabilir && (
+                              <Link
+                                href={`/oyun/kacis?unitId=${unit.id}`}
+                                title="Lab Kaçış Odası"
+                                className="rounded-lg border border-rose-500/30 px-2 py-1 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/15"
+                              >
+                                Kaçış
+                              </Link>
+                            )}
                           </div>
                         );
                       })}

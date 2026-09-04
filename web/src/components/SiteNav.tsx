@@ -15,6 +15,18 @@ export default function SiteNav({ session }: { session: Session }) {
       <Link href="/harita" className={linkCls} onClick={() => setAcik(false)}>
         Harita
       </Link>
+      <Link href="/oyun/hiz" className={linkCls} onClick={() => setAcik(false)}>
+        Hız
+      </Link>
+      <Link href="/oyun/bulmaca" className={linkCls} onClick={() => setAcik(false)}>
+        Bulmaca
+      </Link>
+      <Link href="/oyun/lab" className={linkCls} onClick={() => setAcik(false)}>
+        Lab
+      </Link>
+      <Link href="/oyun/duel" className={linkCls} onClick={() => setAcik(false)}>
+        Düello
+      </Link>
       <Link href="/liderlik" className={linkCls} onClick={() => setAcik(false)}>
         Liderlik
       </Link>

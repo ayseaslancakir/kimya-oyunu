@@ -56,6 +56,12 @@ Kayıt olmayı test et. Hata olursa düzelt.
 
 **Sen sadece:** Terminalde `Ready` yazınca tarayıcıyı aç → **Kayıt ol** → **Harita** → bir ünite → **Quiz**.
 
+**Hızlı demo hesapları** (öğretmen sınıfta gösterebilir):
+- Öğrenci: `demo_ogrenci` / `demo123456`
+- Öğretmen: `demo_ogretmen` / `demo123456`
+
+(Giriş sayfasından; `npm run setup:local` sonrası oluşur.)
+
 ### Sık hatalar
 
 | Ekranda ne görürsün | Ne demek | Yapay zekâya ne yaz |

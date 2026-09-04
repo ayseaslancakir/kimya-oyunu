@@ -79,6 +79,9 @@ export default function GirisPage() {
           Kayıt ol
         </Link>
       </p>
+      <p className="mt-3 text-center text-xs text-slate-600">
+        Demo: demo_ogrenci veya demo_ogretmen · şifre demo123456
+      </p>
     </main>
   );
 }

@@ -29,6 +29,8 @@ Tarayıcı: `http://localhost:3000` · sağlık: `http://localhost:3000/api/heal
 
 Tek komut: `npm run dev:oyun` (kurulum + sunucu birlikte).
 
+**Demo hesapları:** `demo_ogrenci` / `demo_ogretmen` · şifre `demo123456` (`setup:local` sonrası)
+
 **PostgreSQL ile (yayına yakın):** `.env.example` B seçeneği + `npx prisma migrate deploy` + seed.
 
 ## Sayfalar

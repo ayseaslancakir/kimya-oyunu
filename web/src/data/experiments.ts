@@ -150,6 +150,77 @@ export const DENEYLER: Deney[] = [
     sonucMetni:
       "Sonuç: AgNO₃(aq) + NaCl(aq) → AgCl(k) + NaNO₃(aq). Suda çözünmeyen AgCl katısının oluşumu çökelme tepkimesinin kanıtıdır.",
   },
+  {
+    id: "ph-olcum",
+    ad: "pH Ölçümü ve Asit-Baz Gücü",
+    ciktiKodu: "KİM.11.2.5",
+    amac: "Farklı çözeltilerin pH değerlerini karşılaştırarak asit-baz gücünü yorumlamak.",
+    malzemeler: ["pH metre veya pH kağıdı", "Limon suyu", "Sabunlu su", "Saf su", "Güvenlik gözlüğü"],
+    adimlar: [
+      {
+        soru: "pH ölçümü yapmadan önce hangi güvenlik adımı alınmalıdır?",
+        secenekler: ["Koruyucu gözlük takmak", "Numuneleri birbirine karıştırmak", "Tadına bakmak", "Elleri numuneye sokmak"],
+        dogru: 0,
+        aciklama: "Kimyasal çözeltilerle çalışırken göz koruması zorunludur.",
+        sonuc: "Güvenlik ekipmanı hazır.",
+      },
+      {
+        soru: "Limon suyunun pH değeri yaklaşık 2–3 ise bu çözelti için ne söylenir?",
+        secenekler: ["Asidiktir", "Baziktir", "Nötrdür", "Tuzlu sudur"],
+        dogru: 0,
+        aciklama: "pH < 7 asidik ortam gösterir.",
+        sonuc: "Limon suyu asidik özellik gösterdi.",
+      },
+      {
+        soru: "Sabunlu suyun pH değeri 9–10 aralığındaysa bu çözelti?",
+        secenekler: ["Baziktir", "Asidiktir", "Nötrdür", "İyonik değildir"],
+        dogru: 0,
+        aciklama: "pH > 7 bazik ortam gösterir.",
+        sonuc: "Sabunlu su bazik özellik gösterdi.",
+      },
+      {
+        soru: "Saf suyun pH değeri 25°C'de yaklaşık kaçtır?",
+        secenekler: ["7", "0", "14", "1"],
+        dogru: 0,
+        aciklama: "Nötr su 25°C'de pH ≈ 7'dir.",
+        sonuc: "Saf su nötr olarak kaydedildi.",
+      },
+    ],
+    sonucMetni:
+      "Sonuç: pH ölçümü asit-baz gücünü sayısal olarak karşılaştırmamızı sağlar. pH < 7 asidik, pH > 7 bazik, pH ≈ 7 nötr çözeltidir.",
+  },
+  {
+    id: "redoks-lehim",
+    ad: "Redoks: Çinko-Bakır Pil Modeli",
+    ciktiKodu: "KİM.12.1.5",
+    amac: "Galvanik hücrede anot-katot olaylarını ve elektron akış yönünü yorumlamak.",
+    malzemeler: ["Çinko levha", "Bakır levha", "CuSO₄ çözeltisi", "Bağlantı kabloları", "Voltmetre"],
+    adimlar: [
+      {
+        soru: "Galvanik hücrede elektronlar hangi elektroda açığa çıkar?",
+        secenekler: ["Anotta (yükseltgenme)", "Katotta (indirgenme)", "Tuz köprüsünde", "Voltmetrede"],
+        dogru: 0,
+        aciklama: "Anotta yükseltgenme olur; elektronlar dış devreye verilir.",
+        sonuc: "Elektron akışı anottan başladı.",
+      },
+      {
+        soru: "Cu²⁺ iyonları katotta ne olur?",
+        secenekler: ["İndirgenerek Cu(l) oluşturur", "Yükseltgenerek O₂ verir", "Çözeltiden kaybolmaz", "Proton alır"],
+        dogru: 0,
+        aciklama: "Katotta indirgenme: Cu²⁺ + 2e⁻ → Cu.",
+        sonuc: "Bakır levha üzerinde bakır birikimi gözlendi.",
+      },
+      {
+        soru: "Çinko elektrot eriyorsa hangi süreç gerçekleşmiştir?",
+        secenekler: ["Zn yükseltgenerek Zn²⁺ olur", "Zn indirgenir", "Cu yükseltgenir", "Tepkime durmuştur"],
+        dogru: 0,
+        aciklama: "Zn → Zn²⁺ + 2e⁻ (yükseltgenme, anot).",
+        sonuc: "Çinko levha kütle kaybetti — redoks doğrulandı.",
+      },
+    ],
+    sonucMetni:
+      "Sonuç: Galvanik hücrede anotta yükseltgenme, katotta indirgenme olur. Elektronlar anottan katoda dış devre üzerinden akar.",
+  },
 ];
 
 export function getDeney(id: string): Deney | undefined {

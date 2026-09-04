@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -113,6 +114,33 @@ async function main() {
     });
   }
   console.log(`🏅 Rozetler: ${achievements.map((a) => a.slug).join(", ")}`);
+
+  // 5) Demo hesaplar (sınıfta hızlı deneme)
+  const demoHash = await bcrypt.hash("demo123456", 10);
+  const grade9 = await prisma.grade.findFirst({ where: { code: 9 } });
+
+  await prisma.user.upsert({
+    where: { username: "demo_ogrenci" },
+    update: { passwordHash: demoHash },
+    create: {
+      username: "demo_ogrenci",
+      email: "demo.ogrenci@kimyaoyunu.local",
+      passwordHash: demoHash,
+      role: "student",
+      gradeId: grade9?.id,
+    },
+  });
+  await prisma.user.upsert({
+    where: { username: "demo_ogretmen" },
+    update: { passwordHash: demoHash },
+    create: {
+      username: "demo_ogretmen",
+      email: "demo.ogretmen@kimyaoyunu.local",
+      passwordHash: demoHash,
+      role: "teacher",
+    },
+  });
+  console.log("👤 Demo hesaplar: demo_ogrenci / demo_ogretmen (şifre: demo123456)");
 
   console.log("\n✅ Seed tamamlandı.");
 }

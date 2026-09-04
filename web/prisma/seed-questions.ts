@@ -1,6 +1,7 @@
 // 9. sınıf Tema 1 (Etkileşim) için örnek soru bankası.
 // Kullanım: npm run db:seed-questions
 import { PrismaClient } from "@prisma/client";
+import { EK_SORULAR } from "./questions-bank-extra";
 
 const prisma = new PrismaClient();
 
@@ -179,11 +180,13 @@ const SORULAR: Soru[] = [
   },
 ];
 
+const TUM_SORULAR = [...SORULAR, ...EK_SORULAR];
+
 async function main() {
   let eklenen = 0;
   let atlanan = 0;
 
-  for (const s of SORULAR) {
+  for (const s of TUM_SORULAR) {
     const outcome = await prisma.learningOutcome.findUnique({ where: { code: s.kod } });
     if (!outcome) {
       console.warn(`  ⚠️ Çıktı bulunamadı: ${s.kod} (atlandı)`);

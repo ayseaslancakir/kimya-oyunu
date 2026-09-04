@@ -1,0 +1,246 @@
+// ============================================================
+// Kimya Oyunu — Veritabanı Şeması (TYMM müfredatı temelli)
+// Geliştirme ve yayın: PostgreSQL (yerel veya Neon)
+// Detay: docs/03-teknoloji-ve-mimari.md
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== MÜFREDAT (TYMM) ====================
+
+model Curriculum {
+  id        Int      @id @default(autoincrement())
+  name      String // "TYMM Kimya Dersi"
+  version   String // "2024" | "2026"
+  sourceUrl String?
+  isActive  Boolean  @default(true)
+  grades    Grade[]
+}
+
+model Grade {
+  id           Int        @id @default(autoincrement())
+  curriculumId Int
+  curriculum   Curriculum @relation(fields: [curriculumId], references: [id])
+  code         Int // 9 | 10 | 11 | 12
+  themes       Theme[]
+  users        User[]
+
+  @@unique([curriculumId, code])
+}
+
+model Theme {
+  id         Int    @id @default(autoincrement())
+  gradeId    Int
+  grade      Grade  @relation(fields: [gradeId], references: [id])
+  name       String // Etkileşim | Çeşitlilik | Sürdürülebilirlik
+  orderIndex Int
+  units      Unit[]
+
+  @@unique([gradeId, orderIndex])
+}
+
+model Unit {
+  id         Int              @id @default(autoincrement())
+  themeId    Int
+  theme      Theme            @relation(fields: [themeId], references: [id])
+  name       String
+  orderIndex Int
+  outcomes   LearningOutcome[]
+  duels      Duel[]
+
+  @@unique([themeId, name])
+}
+
+model LearningOutcome {
+  id             Int             @id @default(autoincrement())
+  unitId         Int
+  unit           Unit            @relation(fields: [unitId], references: [id])
+  code           String          @unique // "KİM.9.1.1"
+  description    String
+  cognitiveLevel String? // hatırlama | anlama | uygulama | analiz
+  questions      Question[]
+  userProgress   UserProgress[]
+  scores         Score[]
+}
+
+// ==================== KULLANICILAR ====================
+
+model User {
+  id           Int               @id @default(autoincrement())
+  username     String            @unique
+  email        String            @unique
+  passwordHash String
+  role         String            @default("student") // student | teacher | admin
+  gradeId      Int?
+  grade        Grade?            @relation(fields: [gradeId], references: [id])
+  xp           Int               @default(0)
+  createdAt    DateTime          @default(now())
+  lastLogin    DateTime?
+  progress     UserProgress[]
+  scores       Score[]
+  inventory    InventoryItem[]
+  achievements UserAchievement[]
+  classes      ClassStudent[] // öğrenci olarak üye olduğu sınıflar
+  ownedClasses Class[]       @relation("TeacherClasses")
+  duelsCreated Duel[]        @relation("DuelCreator")
+  duelMemberships DuelPlayer[]
+}
+
+// ==================== SORU BANKASI ====================
+
+model Question {
+  id          Int              @id @default(autoincrement())
+  outcomeId   Int
+  outcome     LearningOutcome  @relation(fields: [outcomeId], references: [id])
+  type        String // multiple_choice | true_false | matching | fill_blank | drag_drop
+  prompt      String
+  difficulty  Int              @default(1) // 1-5
+  explanation String? // doğru/yanlış sonrası gösterilen açıklama
+  mediaUrl    String?
+  options     QuestionOption[]
+
+  @@index([outcomeId])
+}
+
+model QuestionOption {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  question   Question @relation(fields: [questionId], references: [id])
+  text       String
+  isCorrect  Boolean  @default(false)
+  orderIndex Int
+}
+
+// ==================== OYUN ====================
+
+model GameMode {
+  id          Int     @id @default(autoincrement())
+  slug        String  @unique // quiz_arena | hiz_yarisi | bulmaca | kacis_odasi | sanal_lab
+  name        String
+  description String?
+  scores      Score[]
+}
+
+model UserProgress {
+  id            Int             @id @default(autoincrement())
+  userId        Int
+  user          User            @relation(fields: [userId], references: [id])
+  outcomeId     Int
+  outcome       LearningOutcome @relation(fields: [outcomeId], references: [id])
+  status        String          @default("not_started") // not_started | in_progress | mastered
+  masteryScore  Float           @default(0) // 0-100 (ağırlıklı)
+  attempts      Int             @default(0)
+  lastAttemptAt DateTime?
+
+  @@unique([userId, outcomeId])
+  @@index([userId])
+}
+
+model Score {
+  id          Int             @id @default(autoincrement())
+  userId      Int
+  user        User            @relation(fields: [userId], references: [id])
+  gameModeId  Int
+  gameMode    GameMode        @relation(fields: [gameModeId], references: [id])
+  outcomeId   Int? // ünite düzeyi oturumlarda null olabilir
+  outcome     LearningOutcome? @relation(fields: [outcomeId], references: [id])
+  score       Int
+  accuracy    Float? // 0-1 isabet oranı
+  maxStreak   Int?
+  durationSec Int?
+  playedAt    DateTime        @default(now())
+
+  @@index([userId])
+  @@index([playedAt])
+}
+
+model InventoryItem {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id])
+  itemType   String // element | card | discovered_substance
+  itemKey    String // "H" | "kart_11" | "su"
+  acquiredAt DateTime @default(now())
+
+  @@unique([userId, itemType, itemKey])
+}
+
+model Achievement {
+  id          Int                @id @default(autoincrement())
+  slug        String             @unique
+  name        String
+  description String
+  icon        String?
+  users       UserAchievement[]
+}
+
+model UserAchievement {
+  userId        Int
+  user          User         @relation(fields: [userId], references: [id])
+  achievementId Int
+  achievement   Achievement  @relation(fields: [achievementId], references: [id])
+  earnedAt      DateTime     @default(now())
+
+  @@id([userId, achievementId])
+}
+
+// ==================== ÖĞRETMEN PANELİ ====================
+
+model Class {
+  id         Int           @id @default(autoincrement())
+  name       String
+  inviteCode String        @unique // öğrencilerin katılım kodu
+  teacherId  Int
+  teacher    User          @relation("TeacherClasses", fields: [teacherId], references: [id])
+  createdAt  DateTime      @default(now())
+  students   ClassStudent[]
+}
+
+model ClassStudent {
+  classId  Int
+  class    Class    @relation(fields: [classId], references: [id])
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id])
+  joinedAt DateTime @default(now())
+
+  @@id([classId, userId])
+  @@index([userId])
+}
+
+// ==================== DÜELLO (çok oyunculu) ====================
+
+model Duel {
+  id          Int          @id @default(autoincrement())
+  code        String       @unique // 6 haneli katılım kodu
+  unitId      Int
+  unit        Unit         @relation(fields: [unitId], references: [id])
+  creatorId   Int
+  creator     User         @relation("DuelCreator", fields: [creatorId], references: [id])
+  status      String       @default("waiting") // waiting | active | finished
+  questionIds String // JSON dizisi (oluşturulurken sabitlenir)
+  createdAt   DateTime     @default(now())
+  finishedAt  DateTime?
+  players     DuelPlayer[]
+}
+
+model DuelPlayer {
+  id       Int      @id @default(autoincrement())
+  duelId   Int
+  duel     Duel     @relation(fields: [duelId], references: [id])
+  userId   Int
+  user     User     @relation(fields: [userId], references: [id])
+  score       Int      @default(0)
+  dogru       Int      @default(0)
+  finished    Boolean  @default(false)
+  answeredIds String   @default("[]") // JSON: cevaplanan soru id listesi
+  joinedAt    DateTime @default(now())
+
+  @@unique([duelId, userId])
+}

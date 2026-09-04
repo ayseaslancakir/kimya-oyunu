@@ -17,22 +17,34 @@ export async function POST(req: NextRequest) {
 
   const { login, password } = parsed.data;
 
-  const user = await prisma.user.findFirst({
-    where: { OR: [{ username: login }, { email: login }] },
-  });
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
-    return NextResponse.json({ error: "Kullanıcı adı veya şifre hatalı" }, { status: 401 });
+  try {
+    const user = await prisma.user.findFirst({
+      where: { OR: [{ username: login }, { email: login }] },
+    });
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+      return NextResponse.json({ error: "Kullanıcı adı veya şifre hatalı" }, { status: 401 });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date() },
+    });
+
+    const token = await createSessionToken({ id: user.id, username: user.username, role: user.role });
+    await setSessionCookie(token);
+
+    return NextResponse.json({
+      user: { id: user.id, username: user.username, email: user.email, role: user.role },
+    });
+  } catch (e) {
+    const msg = (e as Error).message ?? "";
+    if (msg.includes("Can't reach database server") || msg.includes("P1001") || msg.includes("Error code 14")) {
+      return NextResponse.json(
+        { error: "Veritabanına bağlanılamadı. Önce: npm run setup:local" },
+        { status: 503 }
+      );
+    }
+    console.error("login error:", e);
+    return NextResponse.json({ error: "Giriş sırasında sunucu hatası oluştu" }, { status: 500 });
   }
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { lastLogin: new Date() },
-  });
-
-  const token = await createSessionToken({ id: user.id, username: user.username, role: user.role });
-  await setSessionCookie(token);
-
-  return NextResponse.json({
-    user: { id: user.id, username: user.username, email: user.email, role: user.role },
-  });
 }

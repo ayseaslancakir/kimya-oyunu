@@ -25,32 +25,44 @@ export async function POST(req: NextRequest) {
 
   const { username, email, password, role, gradeLevel } = parsed.data;
 
-  const exists = await prisma.user.findFirst({
-    where: { OR: [{ username }, { email }] },
-  });
-  if (exists) {
-    return NextResponse.json({ error: "Bu kullanıcı adı veya e-posta zaten kayıtlı" }, { status: 409 });
+  try {
+    const exists = await prisma.user.findFirst({
+      where: { OR: [{ username }, { email }] },
+    });
+    if (exists) {
+      return NextResponse.json({ error: "Bu kullanıcı adı veya e-posta zaten kayıtlı" }, { status: 409 });
+    }
+
+    const grade = gradeLevel
+      ? await prisma.grade.findFirst({ where: { code: gradeLevel } })
+      : null;
+
+    const user = await prisma.user.create({
+      data: {
+        username,
+        email,
+        passwordHash: await hashPassword(password),
+        role,
+        gradeId: grade?.id,
+      },
+    });
+
+    const token = await createSessionToken({ id: user.id, username: user.username, role: user.role });
+    await setSessionCookie(token);
+
+    return NextResponse.json(
+      { user: { id: user.id, username: user.username, email: user.email, role: user.role } },
+      { status: 201 }
+    );
+  } catch (e) {
+    const msg = (e as Error).message ?? "";
+    if (msg.includes("Can't reach database server") || msg.includes("P1001") || msg.includes("Error code 14")) {
+      return NextResponse.json(
+        { error: "Veritabanına bağlanılamadı. Cursor'a yaz: npm run setup:local çalıştır." },
+        { status: 503 }
+      );
+    }
+    console.error("register error:", e);
+    return NextResponse.json({ error: "Kayıt sırasında sunucu hatası oluştu" }, { status: 500 });
   }
-
-  const grade = gradeLevel
-    ? await prisma.grade.findFirst({ where: { code: gradeLevel } })
-    : null;
-
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      passwordHash: await hashPassword(password),
-      role,
-      gradeId: grade?.id,
-    },
-  });
-
-  const token = await createSessionToken({ id: user.id, username: user.username, role: user.role });
-  await setSessionCookie(token);
-
-  return NextResponse.json(
-    { user: { id: user.id, username: user.username, email: user.email, role: user.role } },
-    { status: 201 }
-  );
 }

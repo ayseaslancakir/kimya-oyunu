@@ -11,7 +11,9 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:seed-questions": "tsx prisma/seed-questions.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "setup:local": "powershell -ExecutionPolicy Bypass -File scripts/setup-local-db.ps1",
+    "dev:oyun": "npm run setup:local && npm run dev"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

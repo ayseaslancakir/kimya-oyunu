@@ -16,22 +16,20 @@ Türkiye Yüzyılı Maarif Modeli (TYMM) Kimya Dersi Öğretim Programı’na (9
 
 ## Kurulum
 
-1. Node.js LTS ve PostgreSQL kurulu olsun (`node --version`, veritabanı `kimya`).
-2. `web/.env.example` dosyasını `web/.env` olarak kopyala. `DATABASE_URL` ve `JWT_SECRET` (en az 32 karakter) doldur.
-3. Komutlar:
+**En kolay (PostgreSQL gerekmez):**
 
 ```powershell
 cd web
 npm install
-npx prisma migrate deploy
-npm run db:seed
-npm run db:seed-questions
+npm run setup:local
 npm run dev
 ```
 
 Tarayıcı: `http://localhost:3000` · sağlık: `http://localhost:3000/api/health`
 
-PATH yüzünden `npm` bulunamazsa proje kökünden: `.\tools\run.cmd npm run dev` (`web` dizininde çalışacak şekilde ayarla).
+Tek komut: `npm run dev:oyun` (kurulum + sunucu birlikte).
+
+**PostgreSQL ile (yayına yakın):** `.env.example` B seçeneği + `npx prisma migrate deploy` + seed.
 
 ## Sayfalar
 

@@ -60,7 +60,7 @@ export default function KacisOdasi({
   const ipucuCezaRef = useRef(0);
 
   useEffect(() => {
-    fetch(`/api/quiz/questions?unitId=${unitId}&limit=${TOPLAM_SORU}`)
+    fetch(`/api/quiz/questions?unitId=${unitId}&limit=${TOPLAM_SORU}&mod=kacis`)
       .then(async (res) => {
         if (!res.ok) throw new Error("Bulmacalar alınamadı");
         const data = await res.json();

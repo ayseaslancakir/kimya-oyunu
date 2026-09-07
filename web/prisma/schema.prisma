@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // geliştirme: yerel PostgreSQL (scripts\pgsql-start.cmd) · yayın: Neon
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -101,6 +101,7 @@ model Question {
   outcome     LearningOutcome  @relation(fields: [outcomeId], references: [id])
   type        String // multiple_choice | true_false | matching | fill_blank | drag_drop
   prompt      String
+  kullanim    String            @default("quiz") // quiz | kacis (soru havuzu ayırımı)
   difficulty  Int              @default(1) // 1-5
   explanation String? // doğru/yanlış sonrası gösterilen açıklama
   mediaUrl    String?

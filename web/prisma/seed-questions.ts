@@ -2,6 +2,9 @@
 // Kullanım: npm run db:seed-questions
 import { PrismaClient } from "@prisma/client";
 import { EK_SORULAR } from "./questions-bank-extra";
+import { EK_SORULAR910 } from "./questions-bank-910";
+import { EK_SORULAR1112 } from "./questions-bank-1112";
+import { kacisHavuzunuEtiketle } from "./tag-kacis-pool";
 
 const prisma = new PrismaClient();
 
@@ -180,7 +183,7 @@ const SORULAR: Soru[] = [
   },
 ];
 
-const TUM_SORULAR = [...SORULAR, ...EK_SORULAR];
+const TUM_SORULAR = [...SORULAR, ...EK_SORULAR, ...EK_SORULAR910, ...EK_SORULAR1112];
 
 async function main() {
   let eklenen = 0;
@@ -222,6 +225,10 @@ async function main() {
   }
 
   console.log(`\n✅ Soru bankası: ${eklenen} soru eklendi, ${atlanan} atlandı.`);
+
+  // Kaçış havuzu: her temada ~5 soruyu "kacis" olarak ayır (quiz ile karışmasın)
+  const etiketlenen = await kacisHavuzunuEtiketle(prisma);
+  console.log(`🚪 Kaçış havuzu: ${etiketlenen} soru "kacis" olarak etiketlendi.`);
 }
 
 main()

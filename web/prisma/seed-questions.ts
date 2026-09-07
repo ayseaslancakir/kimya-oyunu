@@ -4,6 +4,9 @@ import { PrismaClient } from "@prisma/client";
 import { EK_SORULAR } from "./questions-bank-extra";
 import { EK_SORULAR910 } from "./questions-bank-910";
 import { EK_SORULAR1112 } from "./questions-bank-1112";
+import { EK_SORULAR_DOLDUR_9_10 } from "./questions-bank-doldur-9-10";
+import { EK_SORULAR_DOLDUR_11 } from "./questions-bank-doldur-11";
+import { EK_SORULAR_DOLDUR_12 } from "./questions-bank-doldur-12";
 import { kacisHavuzunuEtiketle } from "./tag-kacis-pool";
 
 const prisma = new PrismaClient();
@@ -183,7 +186,15 @@ const SORULAR: Soru[] = [
   },
 ];
 
-const TUM_SORULAR = [...SORULAR, ...EK_SORULAR, ...EK_SORULAR910, ...EK_SORULAR1112];
+const TUM_SORULAR = [
+  ...SORULAR,
+  ...EK_SORULAR,
+  ...EK_SORULAR910,
+  ...EK_SORULAR1112,
+  ...EK_SORULAR_DOLDUR_9_10,
+  ...EK_SORULAR_DOLDUR_11,
+  ...EK_SORULAR_DOLDUR_12,
+];
 
 async function main() {
   let eklenen = 0;

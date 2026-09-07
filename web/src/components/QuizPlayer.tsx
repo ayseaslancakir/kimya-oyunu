@@ -48,8 +48,11 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
 
   const startTime = useRef(Date.now());
   const answered = useRef(false);
+  // Skor/seri sayaçları ref'te tutulur: süre dolduğunda ya da tur bittiğinde (bitir)
+  // kaydedilen değer her zaman günceldir — stale state kullanılmaz.
   const scoreRef = useRef(0);
   const dogruRef = useRef(0);
+  const streakRef = useRef(0);
   const maxStreakRef = useRef(0);
 
   useEffect(() => {
@@ -80,35 +83,28 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
-        setFeedback(data);
+        // Puan/seri hesabı önce ref üzerinden anında yapılır (stale state yok).
+        // Böylece süre dolduğunda veya tur bitirilirken gönderilen skor her zaman günceldir.
         if (data.correct) {
-          setDogru((d) => {
-            const next = d + 1;
-            dogruRef.current = next;
-            return next;
-          });
-          setStreak((s) => {
-            const yeni = s + 1;
-            setMaxStreak((m) => {
-              const next = Math.max(m, yeni);
-              maxStreakRef.current = next;
-              return next;
-            });
-            return yeni;
-          });
-          setScore((s) => {
-            const next = s + 100 + (streak + 1) * 10;
-            scoreRef.current = next;
-            return next;
-          });
+          const yeniSeri = streakRef.current + 1;
+          streakRef.current = yeniSeri;
+          dogruRef.current += 1;
+          if (yeniSeri > maxStreakRef.current) maxStreakRef.current = yeniSeri;
+          scoreRef.current += 100 + yeniSeri * 10;
         } else {
-          setStreak(0);
+          streakRef.current = 0;
         }
+
+        setFeedback(data);
+        setDogru(dogruRef.current);
+        setStreak(streakRef.current);
+        setMaxStreak(maxStreakRef.current);
+        if (data.correct) setScore(scoreRef.current);
       } catch (e) {
         setError((e as Error).message);
       }
     },
-    [index, questions, streak]
+    [index, questions]
   );
 
   // Zamanlayıcı
@@ -249,6 +245,12 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
 
   const question = questions[index];
   const ilerleme = ((index + (feedback ? 1 : 0)) / questions.length) * 100;
+  // Öğretici geri bildirim: yanlışta/süre dolunca doğru seçeneğin harfi de yazılır.
+  const dogruIdx =
+    feedback?.correctOptionId != null
+      ? question.options.findIndex((o) => o.id === feedback.correctOptionId)
+      : -1;
+  const dogruHarf = dogruIdx >= 0 ? String.fromCharCode(65 + dogruIdx) : null;
 
   return (
     <div className="mx-auto max-w-2xl py-10">
@@ -314,7 +316,8 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
           })}
         </div>
 
-        {/* Geri bildirim */}
+        {/* Geri bildirim — her zaman öğretir: açıklama her durumda gösterilir,
+            yanlışta/süre dolunca doğru seçenek yeşil işaretli kalır (bozulmadı) */}
         {feedback && (
           <div
             className={`mt-5 rounded-2xl border p-4 ${
@@ -326,9 +329,15 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
             <p className={`font-bold ${feedback.correct ? "text-emerald-300" : "text-rose-300"}`}>
               {feedback.correct ? "🎉 Doğru!" : selected === null ? "⏰ Süre Doldu!" : "❌ Yanlış!"}
             </p>
-            {feedback.explanation && (
-              <p className="mt-1 text-sm text-slate-300">{feedback.explanation}</p>
+            {!feedback.correct && dogruHarf && (
+              <p className="mt-1 text-sm font-semibold text-emerald-300">
+                ✓ Doğru cevap: {dogruHarf}
+              </p>
             )}
+            <div className="mt-2 rounded-xl bg-slate-950/40 p-3 text-sm leading-relaxed text-slate-300">
+              {feedback.explanation ||
+                "Bu soru için açıklama bulunmuyor. Doğru cevabı yukarıdaki yeşil işaretli seçenekte görebilirsin."}
+            </div>
             <button
               onClick={siradaki}
               className="mt-4 rounded-xl bg-cyan-500 px-6 py-2.5 font-semibold text-slate-950 hover:bg-cyan-400"

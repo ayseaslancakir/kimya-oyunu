@@ -73,14 +73,15 @@ kimya-oyunu/
 
 ## Durum
 
-İskelet ve altı mod **oynanabilir**; soru bankasında 88 soru var (ağırlıkla 9–10. sınıf).
+İskelet ve altı mod **oynanabilir**; soru bankasında **304 soru** var (9–12 arası her ünitede soru mevcut).
 
 Açık kalan işler:
 
-- **Skor istemciden geliyor.** Sunucu mod tavanı, süre tutarlılığı ve günlük XP sınırı uyguluyor
-  (`web/src/lib/game.ts`), ama turun kendisi henüz sunucuda tutulmuyor — görev listesinde **S1**.
-- 11 ve 12. sınıf soruları eksik — **İ1**.
-- Hız/bulmaca müfredat çıktısına bağlı değil; kaçış odası hâlâ quiz kılığında — **O1, O2**.
+- **Skor istemciden geliyor.** Sunucu mod tavanı, süre tutarlılığı ve günlük XP sınırı uyguluyor;
+  tutarsız turlarda rozet/element ödülü verilmiyor (`web/src/lib/game.ts`).
+  Ama turun kendisi henüz sunucuda tutulmuyor — görev listesinde **S1**.
+- Soru kalitesi denetlenmedi (tekrar eden soru, hep aynı indekste doğru şık) — **İ2**.
+- Hız/bulmaca müfredat çıktısına bağlı değil; kaçış odası senaryolaşmadı — **O1, O2**.
 - Otomatik test yok — **Y1**.
 
 Yayın: Vercel + Neon — `docs/05-yayin-rehberi.md`.

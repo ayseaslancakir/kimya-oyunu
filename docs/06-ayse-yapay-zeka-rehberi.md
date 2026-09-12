@@ -113,7 +113,7 @@ Hatayı sen düzelt, ben sadece tarayıcıda test edeceğim.
 
 Çalışan bir **iskelet + 6 mod**. Kayıt, giriş, harita, quiz, hız, bulmaca, kaçış, laboratuvar, düello, öğretmen paneli, liderlik ve koleksiyon var.
 
-Eksik olan şey “mod yokluğu” değil: **içerik sığ (88 soru, ağırlıkla 9–10. sınıf),
+Eksik olan şey “mod yokluğu” değil: **304 soru var ama hepsi okunup doğrulanmadı,
 bazı modlar quiz kılığına girmiş, skor hâlâ istemciden geliyor.** Bitti sayma.
 
 | Çalışır | Zayıf / yarım | Yapma (şimdilik) |

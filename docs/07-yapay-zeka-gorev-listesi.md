@@ -112,21 +112,22 @@ Kabul ölçütü: şifre değişince eski şifreyle giriş yapılamıyor; hesap 
 
 ## İ — İçerik (oyunun kalbi)
 
-Şu an bankada **88 soru** var, ağırlıkla 9 ve 10. sınıf. Hedef: her ünitede en az 5 soru.
+Bankada **304 soru** var ve 9–12 arası her ünitede soru mevcut. Yani artık sorun *sayı* değil,
+**kalite**: soruların hepsi okundu mu, tekrar var mı, kimyası doğru mu?
 
-### İ1 · 11 ve 12. sınıf sorularını tamamla
+### İ1 · Soruları okunabilir hâle getirip gözden geçir
 
 ```
-Görev: web/prisma/questions-bank-extra.ts dosyasına 11. sınıf için 20 yeni çoktan seçmeli soru ekle.
-Biçim birebir mevcut kayıtlarla aynı olsun (kod, zorluk 1-5, soru, aciklama, secenekler[4], dogru).
-Kod olarak yalnız data/curriculum/tymm_kimya_2026.json içinde GERÇEKTEN var olan KİM.11.x.y kodlarını kullan.
-Doğru şık hep 0. indekste olmasın; çeldiriciler inandırıcı olsun; açıklama tek cümlede NEDEN'i söylesin.
-Emin olmadığın kimya bilgisini YAZMA; o soruyu atla ve bana listele.
-Sonra: npm run db:seed-questions
-Kabul ölçütü: /api/health soruSayisi arttı; haritadan 11. sınıf ünitesinde quiz oynanıyor.
+Görev: web/scripts/soru-listele.mjs adında bir betik yaz (yeni paket kullanma).
+Veritabanındaki tüm soruları sınıf → tema → ünite → öğrenme çıktısı sırasıyla,
+okunabilir düz metin olarak web/soru-listesi.txt dosyasına yazsın
+(her soru: kod, soru metni, şıklar, doğru şık işaretli, açıklama).
+package.json'a "db:listele" scripti ekle. Dosyayı .gitignore'a ekle.
+Kabul ölçütü: npm run db:listele çalışıyor ve dosyayı Not Defteri'nde açıp okuyabiliyorum.
 ```
 
-Aynı kutuyu `12` yazarak tekrarla. **Eklenen her soruyu sen oku** — kimya doğruluğu senin işin.
+**Sonra bu dosyayı sen oku.** Hatalı bulduğun soruyu yapay zekâya bildir:
+`Şu kodlu sorunun doğru cevabı yanlış / açıklaması hatalı, düzelt: [kod + sorun]`
 
 ### İ2 · Soru kalitesi denetim betiği
 

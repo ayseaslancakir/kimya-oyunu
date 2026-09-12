@@ -62,6 +62,10 @@ export async function saveGameResult(userId: number, input: GameResultInput) {
     Math.floor((durationSec + SURE_TOLERANSI_SN) / SORU_BASINA_MIN_SN)
   );
 
+  // İstemcinin iddiası sunucunun makul gördüğünden büyükse tur şüphelidir:
+  // skor yine de (kırpılmış hâliyle) kaydedilir ama rozet ve element ödülü verilmez.
+  const supheli = hamSkor > score || hamStreak > maxStreak;
+
   const gameMode = await prisma.gameMode.findUnique({ where: { slug: mode } });
   if (!gameMode) {
     throw new Error("Oyun modu bulunamadı");
@@ -130,14 +134,16 @@ export async function saveGameResult(userId: number, input: GameResultInput) {
       where: { userId, status: "mastered" },
     })) > 0;
 
-  const achievements = await evaluateAchievements(userId, {
-    accuracy,
-    maxStreak,
-    hasMastered,
-  });
+  const achievements = supheli
+    ? []
+    : await evaluateAchievements(userId, {
+        accuracy,
+        maxStreak,
+        hasMastered,
+      });
 
   let element = null;
-  if (accuracy >= 0.7) {
+  if (!supheli && accuracy >= 0.7) {
     const owned = await prisma.inventoryItem.findMany({
       where: { userId, itemType: "element" },
       select: { itemKey: true },

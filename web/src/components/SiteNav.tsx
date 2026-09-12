@@ -88,11 +88,13 @@ export default function SiteNav({ session }: { session: Session }) {
           Kimya<span className="text-cyan-400">Oyunu</span>
         </Link>
 
-        <div className="hidden items-center gap-4 text-sm md:flex">{links}</div>
+        <div className="hidden min-w-0 items-center gap-x-4 gap-y-1 text-sm lg:flex lg:flex-wrap lg:justify-end">
+          {links}
+        </div>
 
         <button
           type="button"
-          className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm md:hidden"
+          className="rounded-lg border border-slate-700 px-3 py-1.5 text-sm lg:hidden"
           aria-expanded={acik}
           aria-controls="mobil-menu"
           onClick={() => setAcik((v) => !v)}
@@ -101,7 +103,7 @@ export default function SiteNav({ session }: { session: Session }) {
         </button>
       </nav>
       {acik && (
-        <div id="mobil-menu" className="flex flex-col gap-3 border-t border-slate-800 px-4 py-3 text-sm md:hidden">
+        <div id="mobil-menu" className="flex flex-col gap-3 border-t border-slate-800 px-4 py-3 text-sm lg:hidden">
           {links}
         </div>
       )}

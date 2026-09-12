@@ -30,6 +30,9 @@ DATABASE_URL="file:./prisma/dev.db"
 JWT_SECRET="yerel-test-icin-en-az-32-karakter-anahtar-123"
 '@ | Set-Content ".env" -Encoding utf8
 
+# Demo hesaplar yalnızca yerelde oluşturulur (üretimde varsayılan olarak kapalı).
+$env:KIMYA_DEMO_HESAPLAR = "1"
+
 npx prisma generate
 npx prisma db push --accept-data-loss
 npm run db:seed

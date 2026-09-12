@@ -2,22 +2,33 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ELEMENTS, shuffle, type Element } from "@/data/elements";
 
 const SURE = 60; // saniye
+const SORU_SAYISI = 40; // sunucudan istenen soru sayısı
+
+type Soru = {
+  id: number; // element numarası
+  prompt: string; // element sembolü
+  options: { id: number; text: string }[];
+};
 
 type TurSonucu = {
-  xp: number;
-  score: number;
-  achievements: { slug: string; name: string; icon: string }[];
-  element: Element | null;
+  xp?: number;
+  score?: number;
+  correctCount?: number;
+  answeredCount?: number;
+  maxStreak?: number;
+  accuracy?: number;
+  achievements?: { slug: string; name: string; icon: string }[];
+  element?: { symbol: string; name: string; number: number } | null;
 };
 
 type Asama = "hazirlik" | "oyun" | "bitis";
 
 export default function HizYarisi() {
   const [asama, setAsama] = useState<Asama>("hazirlik");
-  const [soru, setSoru] = useState<{ element: Element; secenekler: string[] } | null>(null);
+  const [sorular, setSorular] = useState<Soru[]>([]);
+  const [soru, setSoru] = useState<Soru | null>(null);
   const [timeLeft, setTimeLeft] = useState(SURE);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -26,52 +37,24 @@ export default function HizYarisi() {
   const [toplam, setToplam] = useState(0);
   const [sonuc, setSonuc] = useState<TurSonucu | null>(null);
   const [saving, setSaving] = useState(false);
+  const [yukleniyor, setYukleniyor] = useState(false);
+  const [hata, setHata] = useState<string | null>(null);
 
+  // Sunucudaki tur kimliği: soru listesi ve puan sunucuda tutulur.
+  const sessionIdRef = useRef<number | null>(null);
   const cevapVerildi = useRef(false);
-  const scoreRef = useRef(0);
-  const dogruRef = useRef(0);
-  const toplamRef = useRef(0);
-  const maxStreakRef = useRef(0);
-
-  const yeniSoru = useCallback(() => {
-    const element = ELEMENTS[Math.floor(Math.random() * ELEMENTS.length)];
-    const yanlislar = shuffle(ELEMENTS.filter((e) => e.symbol !== element.symbol)).slice(0, 3);
-    const secenekler = shuffle([element, ...yanlislar]).map((e) => e.name);
-    setSoru({ element, secenekler });
-    cevapVerildi.current = false;
-  }, []);
-
-  const basla = useCallback(() => {
-    setScore(0);
-    setStreak(0);
-    setMaxStreak(0);
-    setDogru(0);
-    setToplam(0);
-    scoreRef.current = 0;
-    dogruRef.current = 0;
-    toplamRef.current = 0;
-    maxStreakRef.current = 0;
-    setTimeLeft(SURE);
-    setSonuc(null);
-    yeniSoru();
-    setAsama("oyun");
-  }, [yeniSoru]);
+  const siraRef = useRef(0);
 
   const bitir = useCallback(async () => {
+    const sessionId = sessionIdRef.current;
+    if (sessionId == null) return;
     setSaving(true);
-    const accuracy = toplamRef.current > 0 ? dogruRef.current / toplamRef.current : 0;
     try {
+      // Skor/doğruluk/seri sunucudaki turdan okunur; istemci değer göndermez.
       const res = await fetch("/api/quiz/finish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          unitId: null,
-          mode: "hiz_yarisi",
-          score: scoreRef.current,
-          accuracy,
-          maxStreak: maxStreakRef.current,
-          durationSec: SURE,
-        }),
+        body: JSON.stringify({ sessionId }),
       });
       const data = await res.json();
       if (res.ok) setSonuc(data);
@@ -79,6 +62,36 @@ export default function HizYarisi() {
       // skor kaydı başarısız olsa bile bitiş ekranı gösterilir
     } finally {
       setSaving(false);
+    }
+  }, []);
+
+  // Turu başlat: soruları ve oturumu sunucudan al.
+  const basla = useCallback(async () => {
+    setHata(null);
+    setYukleniyor(true);
+    try {
+      const res = await fetch(`/api/quiz/questions?mode=hiz_yarisi&limit=${SORU_SAYISI}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Tur başlatılamadı");
+      if (!data.sessionId || !data.questions?.length) throw new Error("Tur başlatılamadı");
+
+      sessionIdRef.current = data.sessionId;
+      setSorular(data.questions);
+      siraRef.current = 0;
+      setSoru(data.questions[0]);
+      setScore(0);
+      setStreak(0);
+      setMaxStreak(0);
+      setDogru(0);
+      setToplam(0);
+      setTimeLeft(SURE);
+      setSonuc(null);
+      cevapVerildi.current = false;
+      setAsama("oyun");
+    } catch (e) {
+      setHata((e as Error).message);
+    } finally {
+      setYukleniyor(false);
     }
   }, []);
 
@@ -94,40 +107,44 @@ export default function HizYarisi() {
     return () => clearTimeout(t);
   }, [timeLeft, asama, sonuc, bitir]);
 
-  function cevapla(isim: string) {
+  async function cevapla(isim: string) {
     if (!soru || cevapVerildi.current || asama !== "oyun") return;
     cevapVerildi.current = true;
-    setToplam((t) => {
-      const next = t + 1;
-      toplamRef.current = next;
-      return next;
-    });
 
-    if (isim === soru.element.name) {
-      setDogru((d) => {
-        const next = d + 1;
-        dogruRef.current = next;
-        return next;
+    try {
+      const res = await fetch("/api/quiz/answer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId: sessionIdRef.current,
+          questionId: soru.id,
+          answer: isim,
+        }),
       });
-      setStreak((s) => {
-        const yeni = s + 1;
-        setMaxStreak((m) => {
-          const next = Math.max(m, yeni);
-          maxStreakRef.current = next;
-          return next;
-        });
-        return yeni;
-      });
-      setScore((s) => {
-        const next = s + 50 + streak * 10;
-        scoreRef.current = next;
-        return next;
-      });
-    } else {
-      setStreak(0);
+      const data = await res.json();
+      if (res.ok) {
+        // Puan ve seriyi sunucu hesapladı; ekrandaki değerler sunucudan gelir.
+        setScore(data.score ?? 0);
+        setStreak(data.streak ?? 0);
+        setMaxStreak(data.maxStreak ?? 0);
+        setDogru(data.correctCount ?? 0);
+        setToplam(data.answeredCount ?? 0);
+      }
+    } catch {
+      // ağ hatasında sıradaki soruya geçilir
     }
 
-    setTimeout(() => yeniSoru(), 200);
+    setTimeout(() => {
+      const sonraki = siraRef.current + 1;
+      if (sonraki >= sorular.length) {
+        setAsama("bitis");
+        bitir();
+        return;
+      }
+      siraRef.current = sonraki;
+      setSoru(sorular[sonraki]);
+      cevapVerildi.current = false;
+    }, 200);
   }
 
   // ---------- Görünümler ----------
@@ -139,14 +156,16 @@ export default function HizYarisi() {
           <h2 className="mt-3 text-3xl font-black">Hız Yarışı</h2>
           <p className="mt-3 text-slate-400">
             60 saniye içinde olabildiğince çok element sembolünü doğru ismiyle eşleştir.
-            Her doğru: <span className="font-semibold text-cyan-300">50 puan + seri bonusu</span>.
+            Her doğru: <span className="font-semibold text-cyan-300">100 puan + seri bonusu</span>.
             Doğruluk oranın %70+ olursa yeni bir <span className="font-semibold text-amber-300">element kartı</span> kazanırsın.
           </p>
+          {hata && <p className="mt-4 text-sm text-rose-400">{hata}</p>}
           <button
             onClick={basla}
-            className="mt-6 rounded-xl bg-cyan-500 px-8 py-3 text-lg font-bold text-slate-950 transition hover:bg-cyan-400"
+            disabled={yukleniyor}
+            className="mt-6 rounded-xl bg-cyan-500 px-8 py-3 text-lg font-bold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-wait disabled:opacity-60"
           >
-            Başla!
+            {yukleniyor ? "Hazırlanıyor..." : "Başla!"}
           </button>
         </div>
       </div>
@@ -154,7 +173,10 @@ export default function HizYarisi() {
   }
 
   if (asama === "bitis") {
-    const accuracy = toplam > 0 ? dogru / toplam : 0;
+    const gosterScore = sonuc?.score ?? score;
+    const gosterDogru = sonuc?.correctCount ?? dogru;
+    const gosterToplam = sonuc?.answeredCount ?? toplam;
+    const gosterMaxStreak = sonuc?.maxStreak ?? maxStreak;
     return (
       <div className="mx-auto max-w-xl py-16 text-center">
         <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
@@ -163,17 +185,17 @@ export default function HizYarisi() {
 
           <div className="mt-6 grid grid-cols-3 gap-3">
             <div className="rounded-2xl bg-slate-800 p-4">
-              <p className="text-2xl font-black text-cyan-400">{score}</p>
+              <p className="text-2xl font-black text-cyan-400">{gosterScore}</p>
               <p className="mt-1 text-xs text-slate-400">Puan</p>
             </div>
             <div className="rounded-2xl bg-slate-800 p-4">
               <p className="text-2xl font-black text-emerald-400">
-                {dogru}/{toplam}
+                {gosterDogru}/{gosterToplam}
               </p>
               <p className="mt-1 text-xs text-slate-400">Doğru</p>
             </div>
             <div className="rounded-2xl bg-slate-800 p-4">
-              <p className="text-2xl font-black text-amber-400">{maxStreak}</p>
+              <p className="text-2xl font-black text-amber-400">{gosterMaxStreak}</p>
               <p className="mt-1 text-xs text-slate-400">En İyi Seri</p>
             </div>
           </div>
@@ -241,16 +263,16 @@ export default function HizYarisi() {
       {soru && (
         <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8 text-center">
           <p className="text-xs uppercase tracking-widest text-slate-500">Bu sembol hangi element?</p>
-          <p className="mt-2 text-7xl font-black tracking-wider text-cyan-300">{soru.element.symbol}</p>
+          <p className="mt-2 text-7xl font-black tracking-wider text-cyan-300">{soru.prompt}</p>
 
           <div className="mx-auto mt-8 grid max-w-md gap-3">
-            {soru.secenekler.map((isim) => (
+            {soru.options.map((secenek) => (
               <button
-                key={isim}
-                onClick={() => cevapla(isim)}
+                key={secenek.id}
+                onClick={() => cevapla(secenek.text)}
                 className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-lg font-semibold transition hover:border-cyan-500 hover:bg-slate-800"
               >
-                {isim}
+                {secenek.text}
               </button>
             ))}
           </div>

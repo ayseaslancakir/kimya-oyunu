@@ -46,8 +46,9 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
     element?: { symbol: string; name: string; number: number } | null;
   } | null>(null);
 
-  const startTime = useRef(Date.now());
   const answered = useRef(false);
+  // Sunucudaki tur (GameSession) kimliği: puan/doğruluk artık sunucuda hesaplanır.
+  const sessionIdRef = useRef<number | null>(null);
   // Skor/seri sayaçları ref'te tutulur: süre dolduğunda ya da tur bittiğinde (bitir)
   // kaydedilen değer her zaman günceldir — stale state kullanılmaz.
   const scoreRef = useRef(0);
@@ -61,6 +62,8 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
         if (!res.ok) throw new Error("Soru alınamadı");
         const data = await res.json();
         if (data.questions.length === 0) throw new Error("Bu ünitede henüz soru yok");
+        if (!data.sessionId) throw new Error("Tur başlatılamadı");
+        sessionIdRef.current = data.sessionId;
         setQuestions(data.questions);
       })
       .catch((e) => setError(e.message))
@@ -78,28 +81,27 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
         const res = await fetch("/api/quiz/answer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ questionId: question.id, optionId }),
+          body: JSON.stringify({
+            sessionId: sessionIdRef.current,
+            questionId: question.id,
+            optionId,
+          }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error);
 
-        // Puan/seri hesabı önce ref üzerinden anında yapılır (stale state yok).
-        // Böylece süre dolduğunda veya tur bitirilirken gönderilen skor her zaman günceldir.
-        if (data.correct) {
-          const yeniSeri = streakRef.current + 1;
-          streakRef.current = yeniSeri;
-          dogruRef.current += 1;
-          if (yeniSeri > maxStreakRef.current) maxStreakRef.current = yeniSeri;
-          scoreRef.current += 100 + yeniSeri * 10;
-        } else {
-          streakRef.current = 0;
-        }
+        // Puanı SUNUCU hesapladı; ekranda gösterilen değerler sunucudan gelen güncel hâllerdir.
+        scoreRef.current = typeof data.score === "number" ? data.score : scoreRef.current;
+        dogruRef.current = typeof data.correctCount === "number" ? data.correctCount : dogruRef.current;
+        streakRef.current = typeof data.streak === "number" ? data.streak : 0;
+        maxStreakRef.current =
+          typeof data.maxStreak === "number" ? data.maxStreak : maxStreakRef.current;
 
         setFeedback(data);
         setDogru(dogruRef.current);
         setStreak(streakRef.current);
         setMaxStreak(maxStreakRef.current);
-        if (data.correct) setScore(scoreRef.current);
+        setScore(scoreRef.current);
       } catch (e) {
         setError((e as Error).message);
       }
@@ -132,20 +134,15 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
   }, [index, questions.length]);
 
   const bitir = useCallback(async () => {
+    const sessionId = sessionIdRef.current;
+    if (sessionId == null) return;
     setSaving(true);
-    const durationSec = Math.round((Date.now() - startTime.current) / 1000);
     try {
+      // Skor/doğruluk/seri sunucudaki turdan okunur; istemci değer göndermez.
       const res = await fetch("/api/quiz/finish", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          unitId,
-          mode: "quiz_arena",
-          score: scoreRef.current,
-          accuracy: questions.length > 0 ? dogruRef.current / questions.length : 0,
-          maxStreak: maxStreakRef.current,
-          durationSec,
-        }),
+        body: JSON.stringify({ sessionId }),
       });
       const data = await res.json();
       if (res.ok) setSonuc(data);
@@ -154,7 +151,7 @@ export default function QuizPlayer({ unitId, unitName }: { unitId: number; unitN
     } finally {
       setSaving(false);
     }
-  }, [unitId, questions.length]);
+  }, []);
 
   // ---------- Görünümler ----------
   if (loading) {

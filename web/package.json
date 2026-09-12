@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "check": "prisma validate && tsc --noEmit",
     "start": "next start",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",

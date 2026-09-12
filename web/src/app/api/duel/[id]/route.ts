@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { cevapsizsaIptalEt } from "@/lib/duel";
 
 // GET /api/duel/[id] — düello durumu (oyunculardan biri erişebilir)
 export async function GET(
@@ -34,6 +35,13 @@ export async function GET(
     return NextResponse.json({ error: "Bu düellonun oyuncusu değilsin" }, { status: 403 });
   }
 
+  // 2 dakika cevapsızlık: düelloyu iptal et (status = "cancelled").
+  const iptalEdildi = await cevapsizsaIptalEt(duel);
+  const durum = iptalEdildi ? "cancelled" : duel.status;
+
+  // Rakip skoru tur bitene kadar gizli tutulur (istemciye gönderilmez).
+  const skorlarAcik = durum === "finished" || durum === "cancelled";
+
   // Soruları sabitlenen listeden getir — sıra questionIds ile aynı kalsın
   const questionIds = JSON.parse(duel.questionIds) as number[];
   const found = await prisma.question.findMany({
@@ -50,7 +58,7 @@ export async function GET(
     duel: {
       id: duel.id,
       code: duel.code,
-      status: duel.status,
+      status: durum,
       unitId: duel.unitId,
       unitName: duel.unit.name,
     },
@@ -60,19 +68,25 @@ export async function GET(
       outcomeCode: q.outcome?.code ?? "",
       options: q.options,
     })),
-    players: duel.players.map((p) => ({
-      userId: p.userId,
-      username: p.user.username,
-      score: p.score,
-      dogru: p.dogru,
-      finished: p.finished,
-    })),
+    players: duel.players.map((p) => {
+      const kendi = p.userId === session.id;
+      const gizli = !kendi && !skorlarAcik;
+      return {
+        userId: p.userId,
+        username: p.user.username,
+        score: gizli ? 0 : p.score,
+        dogru: gizli ? 0 : p.dogru,
+        finished: p.finished,
+        scoreHidden: gizli,
+      };
+    }),
     me: {
       userId: ben.userId,
       username: ben.user.username,
       score: ben.score,
       dogru: ben.dogru,
       finished: ben.finished,
+      scoreHidden: false,
     },
   });
 }

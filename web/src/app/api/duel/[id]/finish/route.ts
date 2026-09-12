@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { saveGameResult } from "@/lib/game";
+import { cevapsizsaIptalEt } from "@/lib/duel";
 
 // POST /api/duel/[id]/finish — oyuncu turunu bitirir; ikisi de bitince düello biter.
 export async function POST(
@@ -27,6 +28,15 @@ export async function POST(
   const ben = duel.players.find((p) => p.userId === session.id);
   if (!ben) {
     return NextResponse.json({ error: "Bu düellonun oyuncusu değilsin" }, { status: 403 });
+  }
+  if (duel.status === "cancelled") {
+    return NextResponse.json({ error: "Düello iptal edilmiş" }, { status: 409 });
+  }
+
+  // 2 dakika cevapsızlık: süre aşıldıysa tur bitirilemez, düello iptal edilir.
+  const iptalEdildi = await cevapsizsaIptalEt(duel);
+  if (iptalEdildi) {
+    return NextResponse.json({ error: "Düello cevapsızlık nedeniyle iptal edildi" }, { status: 409 });
   }
 
   let sonuc = null;

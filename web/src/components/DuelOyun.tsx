@@ -5,7 +5,7 @@ import Link from "next/link";
 
 type Option = { id: number; text: string };
 type Question = { id: number; prompt: string; outcomeCode: string; options: Option[] };
-type Player = { userId: number; username: string; score: number; dogru: number; finished: boolean };
+type Player = { userId: number; username: string; score: number; dogru: number; finished: boolean; scoreHidden?: boolean };
 
 type DuelState = {
   duel: { id: number; code: string; status: string; unitId: number; unitName: string };
@@ -26,6 +26,20 @@ export default function DuelOyun({ duelId }: { duelId: number }) {
   const [feedback, setFeedback] = useState<{ correct: boolean; correctOptionId: number | null; explanation: string | null } | null>(null);
   const [timeLeft, setTimeLeft] = useState(SURE);
   const [sonuc, setSonuc] = useState<{ xp: number; achievements?: { slug: string; name: string; icon: string }[]; element?: { symbol: string; name: string; number: number } | null } | null>(null);
+  const [kopyalanan, setKopyalanan] = useState<"kod" | "link" | null>(null);
+  const [kopyalamaHatasi, setKopyalamaHatasi] = useState<string | null>(null);
+
+  // Davet kodunu / bağlantıyı panoya kopyalar.
+  async function kopyala(metin: string, tur: "kod" | "link") {
+    setKopyalamaHatasi(null);
+    try {
+      await navigator.clipboard.writeText(metin);
+      setKopyalanan(tur);
+      setTimeout(() => setKopyalanan(null), 2000);
+    } catch {
+      setKopyalamaHatasi("Kopyalanamadı; kodu elle seçip kopyalayabilirsin.");
+    }
+  }
 
   const answered = useRef(false);
   const bitirdim = useRef(false);
@@ -130,6 +144,42 @@ export default function DuelOyun({ duelId }: { duelId: number }) {
   const bekleniyor = state.players.length < 2;
   const benBittirdi = state.me.finished;
   const düelloBitti = state.duel.status === "finished";
+  const düelloIptal = state.duel.status === "cancelled";
+  const rakipSkorGizli = rakip?.scoreHidden === true;
+
+  // ---------- İPTAL: 2 dakika cevapsızlık ----------
+  if (düelloIptal) {
+    return (
+      <div className="mx-auto max-w-md py-20 text-center">
+        <div className="rounded-3xl border border-rose-800/60 bg-rose-950/20 p-8">
+          <p className="text-5xl">⛔</p>
+          <h2 className="mt-3 text-2xl font-black">Düello İptal Edildi</h2>
+          <p className="mt-1 text-sm text-slate-400">{state.duel.unitName}</p>
+          <p className="mt-4 text-sm text-slate-300">
+            Bir oyuncu <span className="font-semibold text-rose-300">2 dakika</span> boyunca cevap
+            vermediği için düello iptal edildi.
+          </p>
+          <p className="mt-3 text-sm text-slate-400">
+            Skorun: <span className="font-bold text-cyan-300">{state.me.score}</span>
+          </p>
+          <div className="mt-8 flex justify-center gap-3">
+            <Link
+              href="/oyun/duel"
+              className="rounded-xl bg-cyan-500 px-6 py-3 font-semibold text-slate-950 hover:bg-cyan-400"
+            >
+              Yeni Düello
+            </Link>
+            <Link
+              href="/harita"
+              className="rounded-xl border border-slate-600 px-6 py-3 font-semibold hover:border-slate-400"
+            >
+              Haritaya Dön
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ---------- BEKLEME: rakip bekleniyor ----------
   if (bekleniyor) {
@@ -149,10 +199,29 @@ export default function DuelOyun({ duelId }: { duelId: number }) {
             {state.duel.code}
           </p>
 
-          <p className="mt-6 text-sm text-slate-400">
-            Rakibine kodu veya şu linki gönder:
-          </p>
-          <p className="mt-2 break-all rounded-xl bg-slate-800/60 p-3 text-xs text-cyan-300">{paylasimLinki}</p>
+          <button
+            type="button"
+            onClick={() => kopyala(state.duel.code, "kod")}
+            className="mt-3 rounded-xl bg-amber-500/20 px-5 py-2 text-sm font-semibold text-amber-200 transition hover:bg-amber-500/30"
+          >
+            {kopyalanan === "kod" ? "✓ Kopyalandı" : "📋 Kodu Kopyala"}
+          </button>
+
+          <p className="mt-6 text-sm text-slate-400">Rakibine kodu veya şu linki gönder:</p>
+          <div className="mt-2 flex items-center gap-2">
+            <p className="flex-1 break-all rounded-xl bg-slate-800/60 p-3 text-left text-xs text-cyan-300">
+              {paylasimLinki}
+            </p>
+            <button
+              type="button"
+              onClick={() => kopyala(paylasimLinki, "link")}
+              title="Bağlantıyı kopyala"
+              className="rounded-xl border border-slate-600 px-3 py-3 text-xs font-semibold text-slate-200 transition hover:border-cyan-400"
+            >
+              {kopyalanan === "link" ? "✓" : "🔗"}
+            </button>
+          </div>
+          {kopyalamaHatasi && <p className="mt-2 text-xs text-rose-300">{kopyalamaHatasi}</p>}
 
           <p className="mt-6 animate-pulse text-sm font-semibold text-emerald-400">
             ⏳ Rakip bekleniyor...
@@ -260,7 +329,12 @@ export default function DuelOyun({ duelId }: { duelId: number }) {
         </div>
         <div className="rounded-2xl border border-rose-500/40 bg-rose-500/5 p-3 text-center">
           <p className="text-xs text-slate-400">Rakip ({rakip?.username})</p>
-          <p className="text-2xl font-black text-rose-300">{rakip?.score ?? 0}</p>
+          <p className="text-2xl font-black text-rose-300">
+            {rakipSkorGizli ? "🙈 Gizli" : (rakip?.score ?? 0)}
+          </p>
+          <p className="text-[11px] text-slate-500">
+            {rakipSkorGizli ? "Skorlar tur bitince açıklanır" : `${rakip?.dogru ?? 0} doğru`}
+          </p>
         </div>
       </div>
 

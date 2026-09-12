@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
+import { cevapsizsaIptalEt } from "@/lib/duel";
 
 const schema = z.object({
   questionId: z.number().int(),
@@ -33,8 +34,14 @@ export async function POST(
   if (!duel) {
     return NextResponse.json({ error: "Düello bulunamadı" }, { status: 404 });
   }
-  if (duel.status === "finished") {
+  if (duel.status === "finished" || duel.status === "cancelled") {
     return NextResponse.json({ error: "Düello bitti" }, { status: 409 });
+  }
+
+  // 2 dakika cevapsızlık: süre aşıldıysa düello iptal edilir ve cevap kabul edilmez.
+  const iptalEdildi = await cevapsizsaIptalEt(duel);
+  if (iptalEdildi) {
+    return NextResponse.json({ error: "Düello cevapsızlık nedeniyle iptal edildi" }, { status: 409 });
   }
 
   const ben = duel.players.find((p) => p.userId === session.id);
@@ -103,6 +110,7 @@ export async function POST(
     where: { id: ben.id },
     data: {
       answeredIds: JSON.stringify(answered),
+      lastAnswerAt: new Date(), // cevapsızlık sayacı sıfırlanır
       ...(correct ? { score: { increment: 100 }, dogru: { increment: 1 } } : {}),
     },
   });

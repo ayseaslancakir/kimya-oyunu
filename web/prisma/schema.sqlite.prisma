@@ -269,7 +269,7 @@ model Duel {
   unit        Unit         @relation(fields: [unitId], references: [id])
   creatorId   Int
   creator     User         @relation("DuelCreator", fields: [creatorId], references: [id])
-  status      String       @default("waiting") // waiting | active | finished
+  status      String       @default("waiting") // waiting | active | finished | cancelled
   questionIds String // JSON dizisi (oluşturulurken sabitlenir)
   createdAt   DateTime     @default(now())
   finishedAt  DateTime?
@@ -286,6 +286,7 @@ model DuelPlayer {
   dogru       Int      @default(0)
   finished    Boolean  @default(false)
   answeredIds String   @default("[]") // JSON: cevaplanan soru id listesi
+  lastAnswerAt DateTime? // son cevap zamanı; 2 dakika cevapsızlıkta düello iptal edilir
   joinedAt    DateTime @default(now())
 
   @@unique([duelId, userId])

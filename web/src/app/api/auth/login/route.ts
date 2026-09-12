@@ -2,13 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { createSessionToken, setSessionCookie, verifyPassword } from "@/lib/auth";
+import { hizSiniri, istemciIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   login: z.string().min(1, "Kullanıcı adı veya e-posta girin"),
   password: z.string().min(1, "Şifre girin"),
 });
 
+// Aynı IP'den 15 dakikada en fazla 10 giriş denemesi (şifre deneme saldırısına karşı).
+const DENEME_LIMITI = 10;
+const PENCERE_MS = 15 * 60_000;
+
 export async function POST(req: NextRequest) {
+  const kota = hizSiniri(`login:${istemciIp(req)}`, DENEME_LIMITI, PENCERE_MS);
+  if (!kota.izin) {
+    return NextResponse.json(
+      { error: `Çok fazla giriş denemesi. ${Math.ceil(kota.kalanSaniye / 60)} dakika sonra tekrar deneyin.` },
+      { status: 429 }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {

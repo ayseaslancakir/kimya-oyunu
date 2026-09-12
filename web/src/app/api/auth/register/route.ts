@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { createSessionToken, hashPassword, setSessionCookie } from "@/lib/auth";
+import { hizSiniri, istemciIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   username: z
@@ -13,9 +14,35 @@ const schema = z.object({
   password: z.string().min(8, "Şifre en az 8 karakter olmalı").max(72),
   role: z.enum(["student", "teacher"]).default("student"),
   gradeLevel: z.number().int().min(9).max(12).optional().nullable(),
+  teacherCode: z.string().max(100).optional().nullable(),
 });
 
+// Aynı IP'den saatte en fazla 5 hesap.
+const KAYIT_LIMITI = 5;
+const KAYIT_PENCERE_MS = 60 * 60_000;
+
+// Öğretmen hesabı herkese açık olmamalı: öğretmen rolü sınıf kurar ve
+// soru bankasına yazar. TEACHER_CODE tanımlıysa kod doğrulanır.
+// Üretimde kod tanımlı değilse öğretmen kaydı tamamen kapatılır.
+function ogretmenKaydiReddi(kod: string | null | undefined): string | null {
+  const beklenen = process.env.TEACHER_CODE;
+  if (!beklenen) {
+    return process.env.NODE_ENV === "production"
+      ? "Öğretmen kaydı kapalı. Okul yöneticisinden davet kodu isteyin."
+      : null; // yerel geliştirmede serbest
+  }
+  return kod === beklenen ? null : "Öğretmen davet kodu hatalı";
+}
+
 export async function POST(req: NextRequest) {
+  const kota = hizSiniri(`register:${istemciIp(req)}`, KAYIT_LIMITI, KAYIT_PENCERE_MS);
+  if (!kota.izin) {
+    return NextResponse.json(
+      { error: "Çok fazla kayıt denemesi. Bir süre sonra tekrar deneyin." },
+      { status: 429 }
+    );
+  }
+
   const body = await req.json().catch(() => null);
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
@@ -23,7 +50,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: first?.message ?? "Geçersiz veri" }, { status: 400 });
   }
 
-  const { username, email, password, role, gradeLevel } = parsed.data;
+  const { username, email, password, role, gradeLevel, teacherCode } = parsed.data;
+
+  if (role === "teacher") {
+    const red = ogretmenKaydiReddi(teacherCode);
+    if (red) return NextResponse.json({ error: red }, { status: 403 });
+  }
 
   try {
     const exists = await prisma.user.findFirst({

@@ -12,6 +12,7 @@ export default function KayitPage() {
     password: "",
     role: "student",
     gradeLevel: "",
+    teacherCode: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,6 +35,7 @@ export default function KayitPage() {
           password: form.password,
           role: form.role,
           gradeLevel: form.gradeLevel ? Number(form.gradeLevel) : null,
+          teacherCode: form.role === "teacher" ? form.teacherCode : null,
         }),
       });
       const data = await res.json();
@@ -121,6 +123,21 @@ export default function KayitPage() {
             </select>
           </label>
         </div>
+
+        {form.role === "teacher" && (
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium text-slate-300">Öğretmen davet kodu</span>
+            <input
+              value={form.teacherCode}
+              onChange={(e) => set("teacherCode", e.target.value)}
+              className={inputCls}
+              placeholder="Okul yöneticisinden alınır"
+            />
+            <span className="text-xs text-slate-500">
+              Öğretmen hesabı sınıf açar ve soru bankasına yazar; bu yüzden kod ister.
+            </span>
+          </label>
+        )}
 
         {error && <p className="rounded-xl bg-rose-500/10 p-3 text-sm text-rose-300">{error}</p>}
 

@@ -113,7 +113,8 @@ Hatayı sen düzelt, ben sadece tarayıcıda test edeceğim.
 
 Çalışan bir **iskelet + 6 mod**. Kayıt, giriş, harita, quiz, hız, bulmaca, kaçış, laboratuvar, düello, öğretmen paneli, liderlik ve koleksiyon var.
 
-Eksik olan şey “mod yokluğu” değil: **içerik sığ (~15 örnek soru), bazı modlar quiz kılığına girmiş.** Bitti sayma.
+Eksik olan şey “mod yokluğu” değil: **304 soru var ama hepsi okunup doğrulanmadı,
+bazı modlar quiz kılığına girmiş, skor hâlâ istemciden geliyor.** Bitti sayma.
 
 | Çalışır | Zayıf / yarım | Yapma (şimdilik) |
 |---------|----------------|------------------|
@@ -158,6 +159,10 @@ Ajan bir dosyayı gereksiz yere silerse yapay zekâya: `Son değişikliği geri 
 ---
 
 ## 3. Sıra (bunu atlama)
+
+> **Güncel görev listesi artık ayrı dosyada:** `docs/07-yapay-zeka-gorev-listesi.md`.
+> Orada kutular güvenlik (S) → içerik (İ) → oyun (O) → yayın (Y) sırasına dizili ve
+> her birinin kabul ölçütü yazılı. Aşağıdaki eski liste arka plan olarak duruyor.
 
 Aşağıdaki işleri **numara sırasıyla** yaptır. Her maddenin altında yapay zekâya yapıştıracağın metin var.
 
@@ -277,7 +282,8 @@ Kimya doğruluğu: ajan uydurmasın. Kaynak: müfredat JSON + senin ders notun. 
 |-------|----------------|
 | `web/scripts/setup-local-db.ps1` | PostgreSQL olmadan yerel test (SQLite) |
 | `web/src/lib/auth.ts` | Oturum. JWT 7 gün, çerez httpOnly. |
-| `web/src/lib/game.ts` | Tur sonu XP/rozet/kart. Skor tavanı 20000. |
+| `web/src/lib/game.ts` | Tur sonu XP/rozet/kart. Mod skor tavanı, süre tutarlılığı, günlük XP sınırı. |
+| `web/src/lib/rate-limit.ts` | Giriş/kayıt hız sınırı (şifre deneme saldırısına karşı). |
 | `web/src/app/api/quiz/answer/route.ts` | Doğruluk + ustalık. |
 | `web/prisma/schema.prisma` | Şema. Değiştirince migration yaz. |
 

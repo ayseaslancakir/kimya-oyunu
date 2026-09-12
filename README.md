@@ -2,7 +2,8 @@
 
 Türkiye Yüzyılı Maarif Modeli (TYMM) Kimya Dersi Öğretim Programı’na (9–12) bağlı, hesaplı ve skor kaydeden web oyunu.
 
-**Ayşe:** geliştirmeye devam etmek için önce `docs/06-ayse-yapay-zeka-rehberi.md` dosyasını oku. Yapay zekâya ne söyleyeceğin orada, kopyalanacak metinlerle duruyor.
+**Ayşe:** önce `docs/06-ayse-yapay-zeka-rehberi.md` (nasıl çalıştırılır, günlük akış),
+sonra `docs/07-yapay-zeka-gorev-listesi.md` (yapay zekâya yapıştıracağın görev kutuları).
 
 ## Teknoloji
 
@@ -31,6 +32,11 @@ Tek komut: `npm run dev:oyun` (kurulum + sunucu birlikte).
 
 **Demo hesapları:** `demo_ogrenci` / `demo_ogretmen` · şifre `demo123456` (`setup:local` sonrası)
 
+**Faydalı komutlar:** `npm run check` (TypeScript denetimi) · `npm run use:postgres` (şemayı PostgreSQL'e çevir)
+
+**Öğretmen hesabı:** `TEACHER_CODE` ortam değişkeni tanımlıysa kayıt sırasında davet kodu istenir.
+Yayında kod tanımlı değilse öğretmen kaydı tamamen kapalıdır (yerel geliştirmede serbest).
+
 **PostgreSQL ile (yayına yakın):** `.env.example` B seçeneği + `npx prisma migrate deploy` + seed.
 
 ## Sayfalar
@@ -56,7 +62,7 @@ Tek komut: `npm run dev:oyun` (kurulum + sunucu birlikte).
 ```
 kimya-oyunu/
 ├── README.md
-├── docs/                 araştırma, faz planı, yayın, Ayşe rehberi
+├── docs/                 araştırma, faz planı, yayın, Ayşe rehberi, görev listesi
 ├── data/curriculum/      TYMM JSON (93 öğrenme çıktısı)
 ├── scripts/              API denemeleri, müfredat araçları
 ├── tools/run.cmd
@@ -67,6 +73,17 @@ kimya-oyunu/
 
 ## Durum
 
-İskelet ve altı mod **oynanabilir**. Asıl açık: soru bankası dar (çoğu örnek 9. sınıf Tema 1), bazı modlar henüz tam “oyun” değil quiz/hikâye karışımı. Yayın: Vercel + Neon — `docs/05-yayin-rehberi.md`.
+İskelet ve altı mod **oynanabilir**; soru bankasında **304 soru** var (9–12 arası her ünitede soru mevcut).
 
-Sıradaki iş listesi ve yapay zekâ komutları: **`docs/06-ayse-yapay-zeka-rehberi.md`**.
+Açık kalan işler:
+
+- **Skor istemciden geliyor.** Sunucu mod tavanı, süre tutarlılığı ve günlük XP sınırı uyguluyor;
+  tutarsız turlarda rozet/element ödülü verilmiyor (`web/src/lib/game.ts`).
+  Ama turun kendisi henüz sunucuda tutulmuyor — görev listesinde **S1**.
+- Soru kalitesi denetlenmedi (tekrar eden soru, hep aynı indekste doğru şık) — **İ2**.
+- Hız/bulmaca müfredat çıktısına bağlı değil; kaçış odası senaryolaşmadı — **O1, O2**.
+- Otomatik test yok — **Y1**.
+
+Yayın: Vercel + Neon — `docs/05-yayin-rehberi.md`.
+
+Sıradaki iş listesi ve yapay zekâ komutları: **`docs/07-yapay-zeka-gorev-listesi.md`**.

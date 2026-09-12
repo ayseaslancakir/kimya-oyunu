@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "check": "prisma validate && tsc --noEmit",
     "start": "next start",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -14,6 +13,8 @@
     "db:seed-questions": "tsx prisma/seed-questions.ts",
     "db:studio": "prisma studio",
     "setup:local": "powershell -ExecutionPolicy Bypass -File scripts/setup-local-db.ps1",
+    "use:postgres": "node -e \"require('fs').copyFileSync('prisma/schema.postgres.prisma','prisma/schema.prisma')\" && prisma generate",
+    "check": "tsc --noEmit",
     "dev:oyun": "npm run setup:local && npm run dev"
   },
   "prisma": {

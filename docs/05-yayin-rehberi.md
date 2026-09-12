@@ -53,7 +53,7 @@ C:\git\cmd\git.exe push -u origin main
    ```
    DATABASE_URL = <Adım 1'deki Neon bağlantısı>
    JWT_SECRET   = <en az 32 karakterlik rastgele anahtar — randomkeygen.com>
-   TEACHER_CODE = <öğretmen kaydı için gizli kod — en az 8 karakter>
+   TEACHER_CODE = <öğretmen kaydı için gizli kod>
    ```
 
 ### ➕ Vercel ortam değişkenlerine TEACHER_CODE ekle (zorunlu)
@@ -61,10 +61,10 @@ C:\git\cmd\git.exe push -u origin main
 Yayında öğretmen hesabı açılabilmesi için `TEACHER_CODE` **mutlaka** tanımlı olmalıdır:
 
 1. Vercel → proje (`kimya-oyunu`) → **Settings → Environment Variables**
-2. **Add New** → Key: `TEACHER_CODE` · Value: en az 8 karakterlik güçlü ve gizli bir kod · Environment: **Production** (Preview de seçilebilir)
+2. **Add New** → Key: `TEACHER_CODE` · Value: güçlü ve gizli bir kod (en az 8 karakter önerilir) · Environment: **Production** (Preview de seçilebilir)
 3. **Save** → ardından projeyi **yeniden Deploy** et (ortam değişkeni ancak yeni dağıtımda etkin olur)
 
-> ⚠️ `TEACHER_CODE` yalnızca ortam değişkeninden gelir: veritabanına yazılmaz, uygulama/panel içinden değiştirilemez. Kod tanımlı değilse (veya yayında 8 karakterden kısaysa) öğretmen kaydı reddedilir ve `/api/health` **503** döner.
+> ⚠️ `TEACHER_CODE` yalnızca ortam değişkeninden gelir: veritabanına yazılmaz, uygulama/panel içinden değiştirilemez. Yayında kod tanımlı değilse öğretmen kaydı tamamen kapalıdır (403); kod tanımlıysa yalnızca doğru kodu giren kişi öğretmen hesabı açabilir.
 5. **Deploy** → ilk build ~2-3 dk sürer. Migration'lar yayın veritabanına otomatik uygulanır (`prisma migrate deploy`).
 
 ## Adım 4 — Soru bankasını doldur (1 kez)
@@ -85,15 +85,15 @@ C:\nodejs\npx.cmd tsx prisma/seed-questions.ts
 | Kontrol | Adres |
 |---------|-------|
 | Ana sayfa | `https://kimya-oyunu.vercel.app` |
-| Sağlık | `https://kimya-oyunu.vercel.app/api/health` → `status: "ok"` ve `teacherCodeConfigured: true` olmalı |
+| Sağlık | `https://kimya-oyunu.vercel.app/api/health` → `status: "ok"` ve `db: "ok"` olmalı |
 | Kayıt → Harita → oyun | Tarayıcıda dene |
 
-> Öğretmen olarak kayıt olmayı da bir kez dene: kod doğruysa hesap açılır, kod yanlışsa "Öğretmen kodu geçersiz" hatası görünür.
+> Öğretmen olarak kayıt olmayı da bir kez dene: kod doğruysa hesap açılır, kod yanlışsa "Öğretmen davet kodu hatalı" hatası görünür.
 
 ## 🔒 Yayın öncesi güvenlik kontrol listesi
 
 - [ ] `JWT_SECRET` güçlü ve rastgele (varsayılan DEĞİL)
-- [ ] `TEACHER_CODE` yayında tanımlı (en az 8 karakter) ve yalnızca ortam değişkeninde — paylaşılan kod sızmasın
+- [ ] `TEACHER_CODE` yayında tanımlı ve yalnızca ortam değişkeninde — paylaşılan kod sızmasın
 - [ ] Neon şifresi güçlü; bağlantı `sslmode=require`
 - [ ] `.env` dosyaları repo'da YOK (gitignore kontrol)
 - [ ] Repo **private** (öğrenci verisi için)
@@ -108,7 +108,7 @@ C:\nodejs\npx.cmd tsx prisma/seed-questions.ts
 | `P1001` migration hatası | `DATABASE_URL` doğru mu? Neon'da "connection pooling" varsa `?sslmode=require` ekle |
 | Migration çakışması | `prisma migrate deploy` hatası → Neon SQL Editor'de `_prisma_migrations` tablosunu kontrol et |
 | UTF-8 sorunları | Neon projesi varsayılan UTF-8; locale sorunu olmaz (yerelde `--locale=C` kullandık) |
-| Öğretmen kaydı "kapalı" / sağlık 503 | Vercel → Settings → Environment Variables'ta `TEACHER_CODE` yok ya da kısa → ekle ve **yeniden Deploy** et |
+| Öğretmen kaydı "kapalı" (403) | Yayında `TEACHER_CODE` tanımlı değil → Vercel → Settings → Environment Variables'a ekle ve **yeniden Deploy** et |
 
 ## 📈 Geliştirme ortamı (bu makine)
 
@@ -118,6 +118,6 @@ C:\nodejs\npx.cmd tsx prisma/seed-questions.ts
 | Migration + seed | ✅ `web/prisma/migrations` (Postgres için) uygulandı |
 | Çalıştırma | `.\tools\run.cmd C:\nodejs\npm.cmd run dev` |
 
-> Yerelde öğretmen kaydını denemek istersen `web/.env` dosyasına `TEACHER_CODE` ekle (en az 8 karakter) ve sunucuyu yeniden başlat. Hazır `demo_ogretmen` hesabı bu koddan bağımsız çalışır (şifre: `demo123456`).
+> Yerelde `TEACHER_CODE` tanımlı değilse öğretmen kaydı serbesttir (geliştirme kolaylığı); kodla korumak isterseniz `web/.env` dosyasına `TEACHER_CODE` ekleyip sunucuyu yeniden başlatın. Hazır `demo_ogretmen` hesabı bu koddan bağımsız çalışır (şifre: `demo123456`).
 
 > Yerel PostgreSQL'i elle durdurmak gerekirse (yönetici): `net stop postgresql-x64-18`

@@ -1,31 +1,26 @@
 import { NextResponse } from "next/server";
-import { isTeacherCodeConfigured } from "@/lib/teacher-code";
+import { prisma } from "@/lib/db";
 
-// Sağlık kontrolü: iskeletin ayakta olduğunu doğrulamak için
+// Sağlık kontrolü: uygulama + veritabanı ayakta mı?
 // http://localhost:3000/api/health
-// Yayında TEACHER_CODE tanımlı değilse (ya da 8 karakterden kısaysa) sağlık kontrolü
-// başarısız döner; böylece eksik yapılandırma yayında fark edilir.
-export function GET() {
-  const teacherCodeConfigured = isTeacherCodeConfigured();
-  const time = new Date().toISOString();
-
-  if (process.env.NODE_ENV === "production" && !teacherCodeConfigured) {
-    return NextResponse.json(
-      {
-        status: "error",
-        app: "kimya-oyunu",
-        reason: "TEACHER_CODE ortam değişkeni tanımlı değil",
-        teacherCodeConfigured,
-        time,
-      },
-      { status: 503 }
-    );
+// Yayın sonrası bu adres 200 dönmeli (docs/05-yayin-rehberi.md).
+export async function GET() {
+  let db: "ok" | "hata" = "ok";
+  let soruSayisi: number | null = null;
+  try {
+    soruSayisi = await prisma.question.count();
+  } catch {
+    db = "hata";
   }
 
-  return NextResponse.json({
-    status: "ok",
-    app: "kimya-oyunu",
-    teacherCodeConfigured,
-    time,
-  });
+  return NextResponse.json(
+    {
+      status: db === "ok" ? "ok" : "degraded",
+      app: "kimya-oyunu",
+      db,
+      soruSayisi,
+      time: new Date().toISOString(),
+    },
+    { status: db === "ok" ? 200 : 503 }
+  );
 }

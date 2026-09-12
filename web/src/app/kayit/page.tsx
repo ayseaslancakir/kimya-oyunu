@@ -11,8 +11,8 @@ export default function KayitPage() {
     email: "",
     password: "",
     role: "student",
-    teacherCode: "",
     gradeLevel: "",
+    teacherCode: "",
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,8 +34,8 @@ export default function KayitPage() {
           email: form.email,
           password: form.password,
           role: form.role,
-          teacherCode: form.role === "teacher" ? form.teacherCode : undefined,
           gradeLevel: form.gradeLevel ? Number(form.gradeLevel) : null,
+          teacherCode: form.role === "teacher" ? form.teacherCode : null,
         }),
       });
       const data = await res.json();
@@ -60,8 +60,7 @@ export default function KayitPage() {
       <h1 className="text-3xl font-black">Kayıt Ol</h1>
       <p className="mt-1 text-slate-400">Kimya yolculuğuna başla — ilerlemen kaydedilsin.</p>
       <p className="mt-2 text-xs text-slate-500">
-        Öğretmen hesabı sınıf ve soru bankası içindir; kayıt için okulun verdiği öğretmen kodu gerekir.
-        Öğrenciysen “Öğrenci” seç.
+        Öğretmen hesabı sınıf ve soru bankası içindir. Öğrenciysen “Öğrenci” seç.
         Veri kullanımı: <Link href="/gizlilik" className="text-cyan-400 hover:underline">gizlilik notu</Link>.
       </p>
 
@@ -127,17 +126,15 @@ export default function KayitPage() {
 
         {form.role === "teacher" && (
           <label className="grid gap-1.5">
-            <span className="text-sm font-medium text-slate-300">Öğretmen kodu</span>
+            <span className="text-sm font-medium text-slate-300">Öğretmen davet kodu</span>
             <input
-              type="password"
               value={form.teacherCode}
               onChange={(e) => set("teacherCode", e.target.value)}
-              required
-              autoComplete="off"
               className={inputCls}
+              placeholder="Okul yöneticisinden alınır"
             />
             <span className="text-xs text-slate-500">
-              Bu kod okul yöneticisi tarafından verilir; uygulama içinden değiştirilemez.
+              Öğretmen hesabı sınıf açar ve soru bankasına yazar; bu yüzden kod ister.
             </span>
           </label>
         )}

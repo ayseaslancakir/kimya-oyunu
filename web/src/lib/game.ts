@@ -14,18 +14,57 @@ export type GameResultInput = {
 const MAX_SCORE = 20_000;
 const DUPLICATE_WINDOW_MS = 5_000;
 
+// Skor istemciden geliyor; bu yüzden her modun gerçekçi tavanı ile sınırlanır.
+// (Gerçek çözüm: turu sunucuda tutmak — docs/07 "İş S1".)
+const MOD_TAVANI: Record<string, number> = {
+  quiz_arena: 2_500, // 10 soru x (100 + seri bonusu)
+  hiz_yarisi: 4_000, // 60 sn tempo turu
+  bulmaca: 2_000,
+  kacis_odasi: 2_500,
+  sanal_lab: 2_000,
+  duel: 1_000, // 5 soru x 100 (zaten sunucuda hesaplanır)
+};
+
+// Saniyede kazanılabilecek makul üst sınır: 1 sn'de 3 soru çözülemez.
+const SANIYE_BASINA_TAVAN = 60;
+const SURE_TOLERANSI_SN = 10;
+
+// Bir soru en az bu kadar sürer — seri ve doğruluk iddiaları da süreye bağlanır.
+const SORU_BASINA_MIN_SN = 2;
+
+// Günlük XP tavanı — otomatik istek gönderen bir istemci liderlik tablosunu şişiremesin.
+const GUNLUK_XP_TAVANI = 25_000;
+
 function clampScore(n: number): number {
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.min(MAX_SCORE, Math.floor(n)));
 }
 
+// Mod tavanı + süreyle tutarlılık: ikisinden küçüğü geçerlidir.
+function makulSkor(score: number, mode: string, durationSec: number): number {
+  const modTavani = MOD_TAVANI[mode] ?? MAX_SCORE;
+  const sureTavani = (durationSec + SURE_TOLERANSI_SN) * SANIYE_BASINA_TAVAN;
+  return Math.min(score, modTavani, sureTavani);
+}
+
 // Oyun turu sonucunu kaydeder: skor + XP + rozet + element ödülü.
 export async function saveGameResult(userId: number, input: GameResultInput) {
-  const score = clampScore(input.score);
+  const hamSkor = clampScore(input.score);
   const accuracy = Math.max(0, Math.min(1, input.accuracy));
-  const maxStreak = Math.max(0, Math.floor(input.maxStreak));
+  const hamStreak = Math.max(0, Math.floor(input.maxStreak));
   const durationSec = Math.max(0, Math.floor(input.durationSec));
   const { unitId, mode } = input;
+  const score = makulSkor(hamSkor, mode, durationSec);
+  // Rozetler de istemcinin iddiasına bakıyor: seriyi süreyle sınırla
+  // (2 saniyede 1 sorudan hızlı seri yapılamaz).
+  const maxStreak = Math.min(
+    hamStreak,
+    Math.floor((durationSec + SURE_TOLERANSI_SN) / SORU_BASINA_MIN_SN)
+  );
+
+  // İstemcinin iddiası sunucunun makul gördüğünden büyükse tur şüphelidir:
+  // skor yine de (kırpılmış hâliyle) kaydedilir ama rozet ve element ödülü verilmez.
+  const supheli = hamSkor > score || hamStreak > maxStreak;
 
   const gameMode = await prisma.gameMode.findUnique({ where: { slug: mode } });
   if (!gameMode) {
@@ -75,9 +114,19 @@ export async function saveGameResult(userId: number, input: GameResultInput) {
     },
   });
 
+  // Günlük XP tavanı: bugün kazanılanı topla, aşan kısmı yazma.
+  const gunBasi = new Date();
+  gunBasi.setHours(0, 0, 0, 0);
+  const bugun = await prisma.score.aggregate({
+    where: { userId, playedAt: { gte: gunBasi } },
+    _sum: { score: true },
+  });
+  const bugunToplam = bugun._sum.score ?? 0;
+  const eklenecekXp = Math.max(0, Math.min(score, GUNLUK_XP_TAVANI - (bugunToplam - score)));
+
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { xp: { increment: score } },
+    data: { xp: { increment: eklenecekXp } },
   });
 
   const hasMastered =
@@ -85,14 +134,16 @@ export async function saveGameResult(userId: number, input: GameResultInput) {
       where: { userId, status: "mastered" },
     })) > 0;
 
-  const achievements = await evaluateAchievements(userId, {
-    accuracy,
-    maxStreak,
-    hasMastered,
-  });
+  const achievements = supheli
+    ? []
+    : await evaluateAchievements(userId, {
+        accuracy,
+        maxStreak,
+        hasMastered,
+      });
 
   let element = null;
-  if (accuracy >= 0.7) {
+  if (!supheli && accuracy >= 0.7) {
     const owned = await prisma.inventoryItem.findMany({
       where: { userId, itemType: "element" },
       select: { itemKey: true },

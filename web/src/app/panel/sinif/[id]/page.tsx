@@ -3,6 +3,12 @@ import { redirect, notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
+const SON_AKTIF_GUN = 7; // "son 7 günde aktif" bloğu için pencere
+
+function tarihKisa(t: Date): string {
+  return `${t.getDate()}.${t.getMonth() + 1}.${t.getFullYear()}`;
+}
+
 export default async function SinifDetayPage({
   params,
 }: {
@@ -90,6 +96,48 @@ export default async function SinifDetayPage({
     };
   });
 
+  // ---- Son 7 gün aktivitesi: cevaplar (UserProgress) + bitirilen turlar (Score) ----
+  const yediGunOnce = new Date(Date.now() - SON_AKTIF_GUN * 24 * 60 * 60 * 1000);
+  const uyeIdler = members.map((m) => m.userId);
+
+  const [cevapAktivite, turAktivite] = await Promise.all([
+    uyeIdler.length > 0
+      ? prisma.userProgress.groupBy({
+          by: ["userId"],
+          where: { userId: { in: uyeIdler }, lastAttemptAt: { gte: yediGunOnce } },
+          _max: { lastAttemptAt: true },
+        })
+      : Promise.resolve([] as { userId: number; _max: { lastAttemptAt: Date | null } }[]),
+    uyeIdler.length > 0
+      ? prisma.score.groupBy({
+          by: ["userId"],
+          where: { userId: { in: uyeIdler }, playedAt: { gte: yediGunOnce } },
+          _max: { playedAt: true },
+        })
+      : Promise.resolve([] as { userId: number; _max: { playedAt: Date | null } }[]),
+  ]);
+
+  const sonAktivite = new Map<number, Date>();
+  for (const satir of cevapAktivite) {
+    if (satir._max.lastAttemptAt) sonAktivite.set(satir.userId, satir._max.lastAttemptAt);
+  }
+  for (const satir of turAktivite) {
+    if (!satir._max.playedAt) continue;
+    const mevcut = sonAktivite.get(satir.userId);
+    if (!mevcut || satir._max.playedAt > mevcut) sonAktivite.set(satir.userId, satir._max.playedAt);
+  }
+
+  // (1) hiç oynamamış · (2) ortalaması %40 altı (en az bir öğrenci oynamış) · (3) son 7 günde aktif
+  const hicOynamayanlar = ogrenciRows.filter((o) => o.attempts === 0);
+  const zayifUniteler = unitRows
+    .filter((u) => u.katilan > 0 && u.ort < 40)
+    .sort((a, b) => a.ort - b.ort);
+  const katilimsizUniteSayisi = unitRows.filter((u) => u.katilan === 0).length;
+  const sonYediGunAktif = members
+    .map((m) => ({ id: m.userId, username: m.user.username, son: sonAktivite.get(m.userId) ?? null }))
+    .filter((o): o is { id: number; username: string; son: Date } => o.son !== null)
+    .sort((a, b) => b.son.getTime() - a.son.getTime());
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
       <div className="flex items-center justify-between">
@@ -141,6 +189,90 @@ export default async function SinifDetayPage({
             })}
           </div>
         )}
+      </section>
+
+      {/* Rapor blokları: (1) hiç oynamayanlar · (2) ortalaması %40 altı üniteler · (3) son 7 günde aktif */}
+      <section className="mt-12">
+        <h2 className="text-xl font-bold">Özet Bloklar</h2>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {/* (1) Hiç oynamamış öğrenciler */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+            <h3 className="font-semibold text-slate-200">
+              🎯 Hiç Oynamamış Öğrenciler{" "}
+              <span className="text-sm font-normal text-slate-400">({hicOynamayanlar.length})</span>
+            </h3>
+            {hicOynamayanlar.length === 0 ? (
+              <p className="mt-3 text-sm text-emerald-300">✅ Sınıftaki herkes en az bir kez oynamış.</p>
+            ) : (
+              <ul className="mt-3 grid gap-1.5 text-sm">
+                {hicOynamayanlar.map((o) => (
+                  <li
+                    key={o.id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-slate-800/60 px-3 py-1.5"
+                  >
+                    <span className="font-medium text-slate-200">{o.username}</span>
+                    <span className="text-xs text-rose-300">0 deneme</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* (2) Sınıf ortalaması %40 altındaki üniteler */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+            <h3 className="font-semibold text-slate-200">
+              ⚠️ Ortalaması %40 Altındaki Üniteler{" "}
+              <span className="text-sm font-normal text-slate-400">({zayifUniteler.length})</span>
+            </h3>
+            {zayifUniteler.length === 0 ? (
+              <p className="mt-3 text-sm text-emerald-300">✅ Oynanan ünitelerin tümü %40 üzerinde.</p>
+            ) : (
+              <ul className="mt-3 grid gap-1.5 text-sm">
+                {zayifUniteler.map((u) => (
+                  <li key={u.id} className="rounded-lg bg-rose-500/10 px-3 py-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-slate-200">
+                        {u.grade}. sınıf · {u.ad}
+                      </span>
+                      <span className="font-bold text-rose-300">%{u.ort}</span>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {u.tema} · {u.katilan}/{members.length} öğrenci oynadı
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {katilimsizUniteSayisi > 0 && (
+              <p className="mt-3 text-xs text-slate-500">
+                Ayrıca {katilimsizUniteSayisi} üniteye sınıftan hiç katılım yok.
+              </p>
+            )}
+          </div>
+
+          {/* (3) Son 7 günde aktif olanlar */}
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-5">
+            <h3 className="font-semibold text-slate-200">
+              🔥 Son {SON_AKTIF_GUN} Günde Aktif{" "}
+              <span className="text-sm font-normal text-slate-400">({sonYediGunAktif.length})</span>
+            </h3>
+            {sonYediGunAktif.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-400">Son 7 günde hiçbir öğrenci oynamadı.</p>
+            ) : (
+              <ul className="mt-3 grid gap-1.5 text-sm">
+                {sonYediGunAktif.map((o) => (
+                  <li
+                    key={o.id}
+                    className="flex items-center justify-between gap-2 rounded-lg bg-emerald-500/10 px-3 py-1.5"
+                  >
+                    <span className="font-medium text-slate-200">{o.username}</span>
+                    <span className="text-xs text-emerald-300">son: {tarihKisa(o.son)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
       </section>
 
       {/* Ünite raporu */}

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { getScenario } from "@/data/scenarios";
+import { shuffle } from "@/data/elements";
+import { getScenario, getScenarioStep } from "@/data/scenarios";
 
 type Option = { id: number; text: string };
 type Question = {
@@ -16,6 +17,7 @@ type Question = {
 const TOPLAM_SORU = 5;
 const SURE = 300; // 5 dakika
 const CAN = 3;
+const IPUCU_CEZASI = 50; // ipucu alınca düşen puan
 
 type TurSonucu = {
   xp: number;
@@ -38,7 +40,8 @@ export default function KacisOdasi({
   const senaryo = getScenario(temaAdi);
 
   const [asama, setAsama] = useState<Asama>("hikaye");
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]); // sunucudan gelen bulmaca havuzu
+  const [oyunSorulari, setOyunSorulari] = useState<Question[]>([]); // bu turun karıştırılmış sırası
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +52,7 @@ export default function KacisOdasi({
   const [dogru, setDogru] = useState(0);
   const [ipucuKullanildi, setIpucuKullanildi] = useState(false);
   const [timeLeft, setTimeLeft] = useState(SURE);
+  const [oyunBitti, setOyunBitti] = useState(false); // canlar tükendi
 
   const [sonuc, setSonuc] = useState<TurSonucu | null>(null);
   const [kactiMi, setKactiMi] = useState(false);
@@ -56,6 +60,7 @@ export default function KacisOdasi({
 
   const cevapVerildi = useRef(false);
   const dogruRef = useRef(0);
+  const canRef = useRef(CAN);
   const timeLeftRef = useRef(SURE);
   const ipucuCezaRef = useRef(0);
 
@@ -76,7 +81,7 @@ export default function KacisOdasi({
       setSaving(true);
       const zamanBonus = kazandi ? timeLeftRef.current * 2 : 0;
       const finalPuan = Math.max(0, dogruRef.current * 100 + zamanBonus - ipucuCezaRef.current);
-      const soruSayisi = questions.length || TOPLAM_SORU;
+      const soruSayisi = oyunSorulari.length || TOPLAM_SORU;
       try {
         const res = await fetch("/api/quiz/finish", {
           method: "POST",
@@ -98,12 +103,16 @@ export default function KacisOdasi({
         setSaving(false);
       }
     },
-    [unitId, questions.length]
+    [unitId, oyunSorulari.length]
   );
 
   const baslat = useCallback(() => {
+    // Bulmaca sırası her turda yeniden karıştırılır.
+    setOyunSorulari(shuffle(questions).slice(0, TOPLAM_SORU));
     setIndex(0);
     setCan(CAN);
+    canRef.current = CAN;
+    setOyunBitti(false);
     setDogru(0);
     dogruRef.current = 0;
     ipucuCezaRef.current = 0;
@@ -114,11 +123,11 @@ export default function KacisOdasi({
     setIpucuKullanildi(false);
     setSonuc(null);
     setAsama("oyun");
-  }, []);
+  }, [questions]);
 
-  // Geri sayım
+  // Geri sayım (canlar bitince durur)
   useEffect(() => {
-    if (asama !== "oyun" || sonuc) return;
+    if (asama !== "oyun" || sonuc || oyunBitti) return;
     if (timeLeft <= 0) {
       setKactiMi(false);
       setAsama("sonuc");
@@ -133,58 +142,55 @@ export default function KacisOdasi({
       });
     }, 1000);
     return () => clearTimeout(t);
-  }, [timeLeft, asama, sonuc, bitir]);
+  }, [timeLeft, asama, sonuc, oyunBitti, bitir]);
 
   function cevapla(optionId: number) {
-    if (cevapVerildi.current || asama !== "oyun") return;
+    if (cevapVerildi.current || asama !== "oyun" || oyunBitti) return;
     cevapVerildi.current = true;
     setSelected(optionId);
 
     fetch("/api/quiz/answer", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId: questions[index].id, optionId }),
+      body: JSON.stringify({ questionId: oyunSorulari[index].id, optionId }),
     })
       .then((r) => r.json())
       .then((data) => {
         const dogruCevap = data.correct === true;
         setFeedback({ correct: dogruCevap, correctOptionId: data.correctOptionId ?? null });
+
         if (dogruCevap) {
-          setDogru((d) => {
-            const next = d + 1;
-            dogruRef.current = next;
-            return next;
-          });
+          const yeniDogru = dogruRef.current + 1;
+          dogruRef.current = yeniDogru;
+          setDogru(yeniDogru);
         } else {
-          setCan((c) => {
-            const yeni = c - 1;
-            if (yeni <= 0) {
-              setTimeout(() => {
-                setKactiMi(false);
-                setAsama("sonuc");
-                bitir(false);
-              }, 900);
-            }
-            return yeni;
-          });
+          // Can hakkı azalır; canlar bitince tur burada sonlanır ("sonraki" yerine "tekrar dene").
+          const yeniCan = Math.max(0, canRef.current - 1);
+          canRef.current = yeniCan;
+          setCan(yeniCan);
+          if (yeniCan === 0) {
+            setOyunBitti(true);
+            bitir(false); // başarısız tur bir kez kaydedilir
+          }
         }
       })
       .catch(() => setFeedback({ correct: false, correctOptionId: null }));
   }
 
   const siradaki = useCallback(() => {
+    if (oyunBitti) return; // canlar bittiyse ilerleme yok
     cevapVerildi.current = false;
     setSelected(null);
     setFeedback(null);
     setIpucuKullanildi(false);
-    if (index + 1 >= questions.length) {
+    if (index + 1 >= oyunSorulari.length) {
       setKactiMi(true);
       setAsama("sonuc");
       bitir(true);
     } else {
       setIndex((i) => i + 1);
     }
-  }, [index, questions.length, bitir]);
+  }, [index, oyunSorulari.length, oyunBitti, bitir]);
 
   // ---------- Görünümler ----------
   if (loading) {
@@ -293,7 +299,8 @@ export default function KacisOdasi({
   }
 
   // oyun
-  const question = questions[index];
+  const question = oyunSorulari[index];
+  const adim = getScenarioStep(senaryo, index);
   const dk = Math.floor(timeLeft / 60);
   const sn = timeLeft % 60;
 
@@ -303,7 +310,7 @@ export default function KacisOdasi({
         <div>
           <h2 className="text-xl font-bold">🚪 Lab Kaçış Odası</h2>
           <p className="text-xs text-slate-500">
-            Bulmaca {index + 1}/{questions.length} · {unitName}
+            Bulmaca {index + 1}/{oyunSorulari.length} · {unitName}
           </p>
         </div>
         <div className="flex items-center gap-4 text-right">
@@ -318,28 +325,42 @@ export default function KacisOdasi({
       </div>
 
       <div className="rounded-3xl border border-slate-700 bg-slate-900 p-6">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
             {question.outcomeCode}
           </span>
-          {!ipucuKullanildi && feedback === null && (
-            <button
-              onClick={() => {
-                setIpucuKullanildi(true);
-                ipucuCezaRef.current += 50;
-              }}
-              className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/30"
-            >
-              İpucu (−50 puan)
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-rose-500/15 px-3 py-1 text-xs font-semibold text-rose-300">
+              Can: {"❤️".repeat(Math.max(0, can))}
+              <span className="opacity-30">{"❤️".repeat(Math.max(0, CAN - can))}</span>
+            </span>
+            {!ipucuKullanildi && feedback === null && (
+              <button
+                onClick={() => {
+                  setIpucuKullanildi(true);
+                  ipucuCezaRef.current += IPUCU_CEZASI;
+                }}
+                className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-300 transition hover:bg-amber-500/30"
+              >
+                İpucu (−{IPUCU_CEZASI} puan)
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Adımın hikâye metni */}
+        <div className="mb-4 rounded-2xl border border-slate-700/60 bg-slate-950/40 p-4 text-sm leading-relaxed text-slate-300">
+          <p className="mb-1 text-xs font-semibold tracking-widest text-slate-500 uppercase">
+            {index + 1}. adım
+          </p>
+          {adim.hikaye}
         </div>
 
         <h3 className="text-xl font-semibold leading-snug">{question.prompt}</h3>
 
         {ipucuKullanildi && feedback === null && (
           <p className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
-            💡 {senaryo.ipucu}
+            💡 {adim.ipucu}
           </p>
         )}
 
@@ -371,18 +392,47 @@ export default function KacisOdasi({
         {feedback && (
           <div
             className={`mt-5 rounded-2xl border p-4 ${
-              feedback.correct ? "border-emerald-600 bg-emerald-500/10" : "border-rose-600 bg-rose-500/10"
+              feedback.correct
+                ? "border-emerald-600 bg-emerald-500/10"
+                : "border-rose-600 bg-rose-500/10"
             }`}
           >
             <p className={`font-bold ${feedback.correct ? "text-emerald-300" : "text-rose-300"}`}>
-              {feedback.correct ? "✅ Kilit bir adım açıldı!" : "❌ Kilit gıcırdadı... (1 can kaybettin)"}
+              {feedback.correct
+                ? "✅ Kilit bir adım açıldı!"
+                : oyunBitti
+                  ? "💥 Canların tükendi!"
+                  : "❌ Kilit gıcırdadı... (1 can kaybettin)"}
             </p>
-            {can > 0 && (
+
+            {oyunBitti ? (
+              <>
+                <p className="mt-1 text-sm text-slate-300">
+                  Kaçış başarısız oldu.
+                  {sonuc?.score != null ? ` Puanın: ${sonuc.score}.` : ""} Bulmacalar karıştırılarak
+                  yeniden dizilir.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={baslat}
+                    className="rounded-xl bg-cyan-500 px-6 py-2.5 font-semibold text-slate-950 hover:bg-cyan-400"
+                  >
+                    Tekrar Dene 🔁
+                  </button>
+                  <Link
+                    href="/harita"
+                    className="rounded-xl border border-slate-600 px-6 py-2.5 font-semibold hover:border-slate-400"
+                  >
+                    Haritaya Dön
+                  </Link>
+                </div>
+              </>
+            ) : (
               <button
                 onClick={siradaki}
                 className="mt-4 rounded-xl bg-cyan-500 px-6 py-2.5 font-semibold text-slate-950 hover:bg-cyan-400"
               >
-                {index + 1 >= questions.length ? "Kapıyı Aç 🔓" : "Sonraki Bulmaca →"}
+                {index + 1 >= oyunSorulari.length ? "Kapıyı Aç 🔓" : "Sonraki Bulmaca →"}
               </button>
             )}
           </div>

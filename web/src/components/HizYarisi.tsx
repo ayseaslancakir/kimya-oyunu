@@ -25,7 +25,9 @@ type TurSonucu = {
 
 type Asama = "hazirlik" | "oyun" | "bitis";
 
-export default function HizYarisi() {
+// Ünite verilmezse genel element turu; ünite verilirse o ünitenin sorularından kartlar üretilir.
+export default function HizYarisi({ unitId, unitName }: { unitId?: number; unitName?: string }) {
+  const uniteModu = typeof unitId === "number";
   const [asama, setAsama] = useState<Asama>("hazirlik");
   const [sorular, setSorular] = useState<Soru[]>([]);
   const [soru, setSoru] = useState<Soru | null>(null);
@@ -70,7 +72,9 @@ export default function HizYarisi() {
     setHata(null);
     setYukleniyor(true);
     try {
-      const res = await fetch(`/api/quiz/questions?mode=hiz_yarisi&limit=${SORU_SAYISI}`);
+      const temel = `/api/quiz/questions?mode=hiz_yarisi&limit=${SORU_SAYISI}`;
+      const adres = uniteModu ? `${temel}&unitId=${unitId}` : temel;
+      const res = await fetch(adres);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Tur başlatılamadı");
       if (!data.sessionId || !data.questions?.length) throw new Error("Tur başlatılamadı");
@@ -93,7 +97,7 @@ export default function HizYarisi() {
     } finally {
       setYukleniyor(false);
     }
-  }, []);
+  }, [uniteModu, unitId]);
 
   // Geri sayım
   useEffect(() => {
@@ -107,7 +111,7 @@ export default function HizYarisi() {
     return () => clearTimeout(t);
   }, [timeLeft, asama, sonuc, bitir]);
 
-  async function cevapla(isim: string) {
+  async function cevapla(secenek: { id: number; text: string }) {
     if (!soru || cevapVerildi.current || asama !== "oyun") return;
     cevapVerildi.current = true;
 
@@ -115,11 +119,11 @@ export default function HizYarisi() {
       const res = await fetch("/api/quiz/answer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: sessionIdRef.current,
-          questionId: soru.id,
-          answer: isim,
-        }),
+        body: JSON.stringify(
+          uniteModu
+            ? { sessionId: sessionIdRef.current, questionId: soru.id, optionId: secenek.id }
+            : { sessionId: sessionIdRef.current, questionId: soru.id, answer: secenek.text }
+        ),
       });
       const data = await res.json();
       if (res.ok) {
@@ -154,10 +158,15 @@ export default function HizYarisi() {
         <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
           <p className="text-4xl">⚡</p>
           <h2 className="mt-3 text-3xl font-black">Hız Yarışı</h2>
+          {uniteModu && unitName && (
+            <p className="mt-1 text-sm font-semibold text-cyan-300">{unitName}</p>
+          )}
           <p className="mt-3 text-slate-400">
-            60 saniye içinde olabildiğince çok element sembolünü doğru ismiyle eşleştir.
-            Her doğru: <span className="font-semibold text-cyan-300">100 puan + seri bonusu</span>.
-            Doğruluk oranın %70+ olursa yeni bir <span className="font-semibold text-amber-300">element kartı</span> kazanırsın.
+            {uniteModu
+              ? "60 saniye içinde bu ünitenin sorularını olabildiğince hızlı yanıtla."
+              : "60 saniye içinde olabildiğince çok element sembolünü doğru ismiyle eşleştir."}
+            {" "}Her doğru: <span className="font-semibold text-cyan-300">100 puan + seri bonusu</span>.
+            Doğruluk oranın %70+ olursa yeni bir <span className="font-semibold text-amber-300">ödül</span> kazanırsın.
           </p>
           {hata && <p className="mt-4 text-sm text-rose-400">{hata}</p>}
           <button
@@ -247,7 +256,7 @@ export default function HizYarisi() {
     <div className="mx-auto max-w-2xl py-10">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold">⚡ Hız Yarışı</h2>
+          <h2 className="text-xl font-bold">⚡ Hız Yarışı{unitName ? ` · ${unitName}` : ""}</h2>
           <p className="text-xs text-slate-500">
             Doğruluk: %{accuracy} · Seri: {streak} 🔥
           </p>
@@ -262,15 +271,27 @@ export default function HizYarisi() {
 
       {soru && (
         <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8 text-center">
-          <p className="text-xs uppercase tracking-widest text-slate-500">Bu sembol hangi element?</p>
-          <p className="mt-2 text-7xl font-black tracking-wider text-cyan-300">{soru.prompt}</p>
+          <p className="text-xs uppercase tracking-widest text-slate-500">
+            {uniteModu ? "Doğru cevabı seç" : "Bu sembol hangi element?"}
+          </p>
+          <p
+            className={
+              uniteModu
+                ? "mt-3 text-xl font-bold leading-snug text-cyan-300"
+                : "mt-2 text-7xl font-black tracking-wider text-cyan-300"
+            }
+          >
+            {soru.prompt}
+          </p>
 
-          <div className="mx-auto mt-8 grid max-w-md gap-3">
+          <div className={`mx-auto mt-8 grid gap-3 ${uniteModu ? "max-w-xl" : "max-w-md"}`}>
             {soru.options.map((secenek) => (
               <button
                 key={secenek.id}
-                onClick={() => cevapla(secenek.text)}
-                className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-lg font-semibold transition hover:border-cyan-500 hover:bg-slate-800"
+                onClick={() => cevapla(secenek)}
+                className={`rounded-xl border border-slate-700 bg-slate-800/60 p-4 font-semibold transition hover:border-cyan-500 hover:bg-slate-800 ${
+                  uniteModu ? "text-left text-sm" : "text-lg"
+                }`}
               >
                 {secenek.text}
               </button>

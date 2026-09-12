@@ -7,7 +7,9 @@ import { idListesiYaz } from "@/lib/game-session";
 // GET /api/quiz/questions?unitId=5&limit=10&mod=quiz|kacis&mode=quiz_arena|hiz_yarisi
 // mod="quiz"  -> tur başlatır: GameSession oluşturur ve sessionId döner.
 // mod="kacis" -> kaçış odası soruları (oturum kullanmaz, geriye dönük uyumlu).
-// mode="hiz_yarisi" -> element eşleştirme turu: soru setini sunucu üretir ve oturum açar.
+// mode="hiz_yarisi":
+//   unitId varsa  -> kartlar o ünitenin öğrenme çıktılarından üretilir, skor üniteye yazılır.
+//   unitId yoksa  -> genel element sembolü → isim turu (mevcut davranış).
 const HIZ_VARSAYILAN_SORU = 40; // 60 saniyelik tur için bolca soru
 const HIZ_SECENEK_SAYISI = 4;
 
@@ -20,8 +22,11 @@ export async function GET(req: NextRequest) {
   const mod = req.nextUrl.searchParams.get("mod") === "kacis" ? "kacis" : "quiz";
   const mode = req.nextUrl.searchParams.get("mode") === "hiz_yarisi" ? "hiz_yarisi" : "quiz_arena";
   const limitParam = Number(req.nextUrl.searchParams.get("limit"));
+  const unitIdParam = Number(req.nextUrl.searchParams.get("unitId"));
+  const istenenUnitId =
+    Number.isFinite(unitIdParam) && unitIdParam > 0 ? Math.trunc(unitIdParam) : null;
 
-  // ---- Hız Yarışı: element sembolü → isim eşleştirme turu ----
+  // ---- Hız Yarışı ----
   if (mode === "hiz_yarisi") {
     const adet = Number.isFinite(limitParam)
       ? Math.min(Math.max(Math.trunc(limitParam), 5), 60)
@@ -32,6 +37,46 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Hız yarışı modu tanımlı değil" }, { status: 500 });
     }
 
+    // Üniteye bağlı tur: kartlar ünitenin öğrenme çıktılarına ait sorulardan gelir.
+    if (istenenUnitId) {
+      const unit = await prisma.unit.findUnique({ where: { id: istenenUnitId }, select: { id: true } });
+      if (!unit) {
+        return NextResponse.json({ error: "Ünite bulunamadı" }, { status: 404 });
+      }
+
+      const havuz = await prisma.question.findMany({
+        where: { kullanim: "quiz", outcome: { unitId: istenenUnitId } },
+        include: {
+          options: { orderBy: { orderIndex: "asc" }, select: { id: true, text: true } },
+          outcome: { select: { code: true } },
+        },
+      });
+      const secilen = shuffle(havuz).slice(0, Math.min(adet, havuz.length));
+      if (secilen.length === 0) {
+        return NextResponse.json({ error: "Bu ünitede henüz soru yok" }, { status: 400 });
+      }
+
+      const questions = secilen.map((q) => ({
+        id: q.id,
+        prompt: q.prompt,
+        difficulty: q.difficulty,
+        outcomeCode: q.outcome.code,
+        options: shuffle(q.options),
+      }));
+
+      const tur = await prisma.gameSession.create({
+        data: {
+          userId: session.id,
+          gameModeId: gameMode.id,
+          unitId: istenenUnitId,
+          questionIds: idListesiYaz(questions.map((q) => q.id)),
+        },
+      });
+
+      return NextResponse.json({ sessionId: tur.id, unitId: istenenUnitId, mode, questions });
+    }
+
+    // Genel element turu (ünite verilmediğinde mevcut davranış korunur).
     const secilenler = shuffle(ELEMENTS).slice(0, Math.min(adet, ELEMENTS.length));
     const questions = secilenler.map((element) => {
       const yanlislar = shuffle(ELEMENTS.filter((e) => e.number !== element.number)).slice(
@@ -60,10 +105,10 @@ export async function GET(req: NextRequest) {
   }
 
   // ---- Quiz / Kaçış: öğrenme çıktısı soruları ----
-  const unitId = Number(req.nextUrl.searchParams.get("unitId"));
-  if (!unitId || Number.isNaN(unitId)) {
+  if (!istenenUnitId) {
     return NextResponse.json({ error: "unitId parametresi gerekli" }, { status: 400 });
   }
+  const unitId = istenenUnitId;
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(Math.trunc(limitParam), 1), 20) : 10;
 
   const pool = await prisma.question.findMany({

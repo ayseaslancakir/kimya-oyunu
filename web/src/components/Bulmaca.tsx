@@ -2,70 +2,117 @@
 
 import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
-import { ELEMENTS, shuffle, type Element } from "@/data/elements";
+import { ELEMENTS, shuffle } from "@/data/elements";
 
 const TUR_BASI_ES = 4; // her turda 4 çift
 const TUR_SAYISI = 3;
+
+// Ünite modunda sunucudan gelen eşleştirme kartları (soru ↔ doğru cevap).
+export type BulmacaKarti = { sol: string; sag: string };
+
+type Cift = { id: string; sol: string; sag: string };
 
 type TurSonucu = {
   xp: number;
   score: number;
   achievements: { slug: string; name: string; icon: string }[];
-  element: Element | null;
+  element: { symbol: string; name: string; number: number } | null;
 };
 
 type Asama = "hazirlik" | "oyun" | "bitis";
-type Cift = { element: Element; eslesti: boolean; hata: boolean };
 
-export default function Bulmaca() {
+// Element turu: rastgele 4 element çifti (ünite verilmediğinde mevcut davranış).
+function elementCiftleri(): Cift[] {
+  return shuffle(ELEMENTS)
+    .slice(0, TUR_BASI_ES)
+    .map((e) => ({ id: `e${e.number}`, sol: e.symbol, sag: e.name }));
+}
+
+// Ünite kartlarını turlara böler (son tur tek kart kaldıysa öncekiyle birleştirir).
+function uniteTurlari(kartlar: BulmacaKarti[]): Cift[][] {
+  const karisik = shuffle(kartlar.map((k, i) => ({ id: `k${i}`, sol: k.sol, sag: k.sag })));
+  const gruplar: Cift[][] = [];
+  for (let i = 0; i < karisik.length && gruplar.length < TUR_SAYISI; i += TUR_BASI_ES) {
+    gruplar.push(karisik.slice(i, i + TUR_BASI_ES));
+  }
+  if (gruplar.length > 1 && gruplar[gruplar.length - 1].length < 2) {
+    const tek = gruplar.pop() as Cift[];
+    gruplar[gruplar.length - 1] = [...gruplar[gruplar.length - 1], ...tek];
+  }
+  return gruplar;
+}
+
+// Ünite verilmezse genel element turu; ünite verilirse kartlar ünitenin sorularından gelir.
+export default function Bulmaca({
+  unitId,
+  unitName,
+  kartlar,
+}: {
+  unitId?: number;
+  unitName?: string;
+  kartlar?: BulmacaKarti[];
+}) {
+  const uniteModu = Array.isArray(kartlar) && kartlar.length >= 2;
+
   const [asama, setAsama] = useState<Asama>("hazirlik");
   const [ciftler, setCiftler] = useState<Cift[]>([]);
-  const [solKarilik, setSolKarilik] = useState<string[]>([]); // semboller (karılmış)
-  const [sagKarilik, setSagKarilik] = useState<string[]>([]); // isimler (karılmış)
+  const [solSira, setSolSira] = useState<string[]>([]); // soldaki kartların id sırası (karılmış)
+  const [sagSira, setSagSira] = useState<string[]>([]); // sağdaki kartların id sırası (karılmış)
+  const [eslesenIdler, setEslesenIdler] = useState<string[]>([]);
 
   const [tur, setTur] = useState(1);
+  const [turSayisi, setTurSayisi] = useState(TUR_SAYISI);
   const [hata, setHata] = useState(0);
   const [puan, setPuan] = useState(0);
   const [sonuc, setSonuc] = useState<TurSonucu | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [seciliSol, setSeciliSol] = useState<string | null>(null);
-  const [seciliSag, setSeciliSag] = useState<string | null>(null);
-  const [yanlis, setYanlis] = useState<string | null>(null);
+  const [seciliSolId, setSeciliSolId] = useState<string | null>(null);
+  const [yanlisId, setYanlisId] = useState<string | null>(null);
   const startTime = useRef(Date.now());
+  const turlarRef = useRef<Cift[][]>([]);
+  const ciftSayisiRef = useRef(0);
 
   const turKur = useCallback((turNo: number) => {
-    const esler = shuffle(ELEMENTS).slice(0, TUR_BASI_ES);
-    setCiftler(esler.map((e) => ({ element: e, eslesti: false, hata: false })));
-    setSolKarilik(shuffle(esler.map((e) => e.symbol)));
-    setSagKarilik(shuffle(esler.map((e) => e.name)));
-    setSeciliSol(null);
-    setSeciliSag(null);
-    setYanlis(null);
+    const grup = turlarRef.current[turNo - 1] ?? [];
+    setCiftler(grup);
+    setSolSira(shuffle(grup.map((c) => c.id)));
+    setSagSira(shuffle(grup.map((c) => c.id)));
+    setEslesenIdler([]);
+    setSeciliSolId(null);
+    setYanlisId(null);
     setTur(turNo);
   }, []);
 
   const basla = useCallback(() => {
+    const turlar = uniteModu
+      ? uniteTurlari(kartlar as BulmacaKarti[])
+      : Array.from({ length: TUR_SAYISI }, elementCiftleri);
+    turlarRef.current = turlar;
+    ciftSayisiRef.current = turlar.reduce((a, g) => a + g.length, 0);
+    setTurSayisi(turlar.length);
     setHata(0);
     setPuan(0);
+    setSonuc(null);
     startTime.current = Date.now();
     turKur(1);
     setAsama("oyun");
-  }, [turKur]);
+  }, [uniteModu, kartlar, turKur]);
 
   const bitir = useCallback(
     async (finalPuan: number) => {
       setSaving(true);
       const durationSec = Math.round((Date.now() - startTime.current) / 1000);
+      const toplamCift = Math.max(1, ciftSayisiRef.current);
       try {
         const res = await fetch("/api/quiz/finish", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            unitId: null,
+            unitId: uniteModu ? unitId : null, // skor üniteye kaydedilir
             mode: "bulmaca",
             score: finalPuan,
-            accuracy: 1 - hata / (TUR_SAYISI * TUR_BASI_ES * 2), // kabaca doğruluk
+            accuracy: Math.max(0, Math.min(1, 1 - hata / (toplamCift * 2))), // kabaca doğruluk
             maxStreak: 0,
             durationSec,
           }),
@@ -78,48 +125,44 @@ export default function Bulmaca() {
         setSaving(false);
       }
     },
-    [hata]
+    [hata, uniteModu, unitId]
   );
 
   const turuBitir = useCallback(() => {
-    if (tur >= TUR_SAYISI) {
+    if (tur >= turSayisi) {
       const finalPuan = Math.max(0, puan);
       setAsama("bitis");
       bitir(finalPuan);
     } else {
       turKur(tur + 1);
     }
-  }, [tur, puan, turKur, bitir]);
+  }, [tur, turSayisi, puan, turKur, bitir]);
 
-  function solTikla(sembol: string) {
-    if (seciliSag) return; // önce sağ taraf seçilmeli
-    setSeciliSol(sembol);
+  function solTikla(id: string) {
+    if (eslesenIdler.includes(id)) return;
+    setSeciliSolId(id);
   }
 
-  function sagTikla(isim: string) {
-    if (!seciliSol || seciliSag) return;
+  function sagTikla(id: string) {
+    if (!seciliSolId || eslesenIdler.includes(id)) return; // önce sol taraf seçilmeli
 
-    const cift = ciftler.find((c) => c.element.name === isim);
-    if (!cift) return;
-
-    if (cift.element.symbol === seciliSol) {
+    if (id === seciliSolId) {
       // doğru eşleşme
-      setCiftler((cs) => cs.map((c) => (c.element.name === isim ? { ...c, eslesti: true } : c)));
+      const yeniEslesen = [...eslesenIdler, id];
+      setEslesenIdler(yeniEslesen);
       setPuan((p) => p + 100);
-      setSeciliSol(null);
-      setSeciliSag(null);
+      setSeciliSolId(null);
 
-      const kalan = ciftler.filter((c) => !c.eslesti && c.element.name !== isim).length;
-      if (kalan === 0) {
+      if (yeniEslesen.length === ciftler.length) {
         setTimeout(turuBitir, 400);
       }
     } else {
       // yanlış eşleşme
       setHata((h) => h + 1);
       setPuan((p) => Math.max(0, p - 20));
-      setYanlis(isim);
-      setTimeout(() => setYanlis(null), 500);
-      setSeciliSol(null);
+      setYanlisId(id);
+      setTimeout(() => setYanlisId(null), 500);
+      setSeciliSolId(null);
     }
   }
 
@@ -130,10 +173,17 @@ export default function Bulmaca() {
         <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
           <p className="text-4xl">🧩</p>
           <h2 className="mt-3 text-3xl font-black">Bulmaca Krallığı</h2>
+          {uniteModu && unitName && (
+            <p className="mt-1 text-sm font-semibold text-cyan-300">{unitName}</p>
+          )}
           <p className="mt-3 text-slate-400">
-            Sembolü sol taraftan, doğru ismini sağ taraftan seçerek eşleştir.
-            {TUR_SAYISI} tur · her turda {TUR_BASI_ES} çift.
-            Her doğru çift <span className="font-semibold text-cyan-300">100 puan</span>, her hata{" "}
+            {uniteModu
+              ? "Soldan soruyu, sağdan doğru cevabı seçerek eşleştir."
+              : "Sembolü sol taraftan, doğru ismini sağ taraftan seçerek eşleştir."}
+            {uniteModu
+              ? ` En fazla ${TUR_SAYISI} tur · her turda ${TUR_BASI_ES} kart.`
+              : ` ${TUR_SAYISI} tur · her turda ${TUR_BASI_ES} çift.`}
+            {" "}Her doğru çift <span className="font-semibold text-cyan-300">100 puan</span>, her hata{" "}
             <span className="font-semibold text-rose-300">-20 puan</span>.
           </p>
           <button
@@ -153,6 +203,9 @@ export default function Bulmaca() {
         <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
           <p className="text-sm font-medium tracking-widest text-cyan-400 uppercase">Tamamlandı</p>
           <h2 className="mt-2 text-3xl font-black">🧩 Bulmaca Sonucu</h2>
+          {uniteModu && unitName && (
+            <p className="mt-1 text-sm text-slate-400">{unitName}</p>
+          )}
 
           <div className="mt-6 grid grid-cols-2 gap-3">
             <div className="rounded-2xl bg-slate-800 p-4">
@@ -206,9 +259,9 @@ export default function Bulmaca() {
     <div className="mx-auto max-w-2xl py-10">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold">🧩 Bulmaca Krallığı</h2>
+          <h2 className="text-xl font-bold">🧩 Bulmaca Krallığı{unitName ? ` · ${unitName}` : ""}</h2>
           <p className="text-xs text-slate-500">
-            Tur {tur}/{TUR_SAYISI} · {ciftler.filter((c) => c.eslesti).length}/{TUR_BASI_ES} çift
+            Tur {tur}/{turSayisi} · {eslesenIdler.length}/{ciftler.length} çift
           </p>
         </div>
         <div className="text-right">
@@ -218,18 +271,21 @@ export default function Bulmaca() {
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        {/* Sol: semboller */}
+        {/* Sol: semboller (element modu) veya sorular (ünite modu) */}
         <div className="grid gap-3">
-          {solKarilik.map((sembol) => {
-            const cift = ciftler.find((c) => c.element.symbol === sembol);
-            const eslesti = cift?.eslesti;
-            const secili = seciliSol === sembol;
+          {solSira.map((id) => {
+            const cift = ciftler.find((c) => c.id === id);
+            if (!cift) return null;
+            const eslesti = eslesenIdler.includes(id);
+            const secili = seciliSolId === id;
             return (
               <button
-                key={sembol}
+                key={id}
                 disabled={eslesti}
-                onClick={() => solTikla(sembol)}
-                className={`rounded-xl border p-4 text-2xl font-black tracking-wide transition ${
+                onClick={() => solTikla(id)}
+                className={`rounded-xl border p-4 transition ${
+                  uniteModu ? "text-left text-sm font-semibold leading-snug" : "text-2xl font-black tracking-wide"
+                } ${
                   eslesti
                     ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
                     : secili
@@ -237,24 +293,27 @@ export default function Bulmaca() {
                       : "border-slate-700 bg-slate-800/60 hover:border-cyan-500"
                 }`}
               >
-                {sembol}
+                {cift.sol}
               </button>
             );
           })}
         </div>
 
-        {/* Sağ: isimler */}
+        {/* Sağ: isimler (element modu) veya cevaplar (ünite modu) */}
         <div className="grid gap-3">
-          {sagKarilik.map((isim) => {
-            const cift = ciftler.find((c) => c.element.name === isim);
-            const eslesti = cift?.eslesti;
-            const yanlisMi = yanlis === isim;
+          {sagSira.map((id) => {
+            const cift = ciftler.find((c) => c.id === id);
+            if (!cift) return null;
+            const eslesti = eslesenIdler.includes(id);
+            const yanlisMi = yanlisId === id;
             return (
               <button
-                key={isim}
+                key={id}
                 disabled={eslesti}
-                onClick={() => sagTikla(isim)}
+                onClick={() => sagTikla(id)}
                 className={`rounded-xl border p-4 text-left font-semibold transition ${
+                  uniteModu ? "text-sm leading-snug" : ""
+                } ${
                   eslesti
                     ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
                     : yanlisMi
@@ -262,7 +321,7 @@ export default function Bulmaca() {
                       : "border-slate-700 bg-slate-800/60 hover:border-cyan-500"
                 }`}
               >
-                {isim}
+                {cift.sag}
               </button>
             );
           })}
@@ -270,7 +329,8 @@ export default function Bulmaca() {
       </div>
 
       <p className="mt-6 text-center text-xs text-slate-500">
-        Önce sol taraftan sembolü, sonra sağ taraftan ismini seç.
+        Önce sol taraftan {uniteModu ? "soruyu" : "sembolü"}, sonra sağ taraftan{" "}
+        {uniteModu ? "doğru cevabı" : "ismini"} seç.
       </p>
     </div>
   );

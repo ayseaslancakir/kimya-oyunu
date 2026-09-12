@@ -10,7 +10,7 @@ const schema = z.object({
   sessionId: z.number().int().positive().optional(),
   questionId: z.number().int(),
   optionId: z.number().int().nullable().optional(), // süre dolduysa null (yanlış sayılır)
-  answer: z.string().min(1).max(100).optional(), // hız yarışı: seçilen element adı
+  answer: z.string().min(1).max(100).optional(), // ünitesiz hız yarışı: seçilen element adı
 });
 
 // POST /api/quiz/answer
@@ -67,7 +67,9 @@ async function oturumluCevap(
   let outcomeCode: string | null = null;
   let outcomeId: number | null = null;
 
-  if (tur.gameMode.slug === "hiz_yarisi") {
+  // Ünitesiz hız yarışı element eşleştirmedir: doğru cevap element adıdır.
+  // Üniteye bağlı hız yarışı ise soru bankasından beslenir: doğru şık DB'den doğrulanır.
+  if (tur.gameMode.slug === "hiz_yarisi" && tur.unitId == null) {
     const element = ELEMENTS.find((e) => e.number === questionId);
     if (!element) {
       return NextResponse.json({ error: "Soru bulunamadı" }, { status: 404 });

@@ -1,6 +1,6 @@
 # 🚀 Yayın Rehberi (GitHub + Vercel + Neon)
 
-> Hedef mimari: **Vercel** (uygulama) + **Neon** (PostgreSQL, ücretsiz). Uygulama şu an yerel PostgreSQL'de çalışıyor ve şema yayına hazır.
+> Hedef mimari: **Vercel** (uygulama) + **Neon** (PostgreSQL, ücretsiz). Yayında şema **PostgreSQL**'dir (`npm run use:postgres`) ve migration'lar build sırasında `prisma migrate deploy` ile uygulanır; yerel testler SQLite ile yapılır (`npm run setup:local`).
 > Tahmini süre: 20-30 dakika.
 
 ---
@@ -24,6 +24,21 @@ GitHub (kod) ──▶ Vercel (Next.js + API) ──▶ Neon PostgreSQL
    > ⚠️ Bu şifre `postgres` kullanıcısına ait. Daha güvenli alternatif: **Roles** bölümünden yeni rol + şifre üret.
 
 ## Adım 2 — GitHub'a yükle (5 dk)
+
+### ⚠️ Önce: şemayı PostgreSQL'e çevir (yayın şartı)
+
+Vercel, depodaki `prisma/schema.prisma` ile build eder. Yayında bu şema **PostgreSQL** olmalıdır; aksi hâlde build SQLite istemcisi üretir ve `prisma migrate deploy` Neon'da başarısız olur.
+
+```powershell
+cd web
+# Çalışan bir geliştirme sunucusu varsa önce kapat (Prisma motor dosyasını kilitler).
+C:\nodejs\npm.cmd run use:postgres
+```
+
+- Bu komut `prisma/schema.postgres.prisma` dosyasını `prisma/schema.prisma` üzerine kopyalar ve Prisma istemcisini yeniden üretir.
+- Kontrol: `prisma/schema.prisma` içinde `provider = "postgresql"` yazmalı.
+- Yerelde SQLite ile test etmek istersen `npm run setup:local` bu dosyayı geçici olarak SQLite'a çevirir (bunu **commit etme**).
+- Aşağıdaki `git push`, PostgreSQL şemasını içermelidir.
 
 ```powershell
 # Proje zaten git reposu olarak hazırlandı (bu rehberle birlikte). Kontrol:
@@ -49,12 +64,18 @@ C:\git\cmd\git.exe push -u origin main
    | **Root Directory** | `web` |
    | Build Command | `prisma migrate deploy && next build` (vercel.json ile otomatik) |
    | Install Command | `npm install` (postinstall → prisma generate otomatik) |
-4. **Environment Variables** ekle:
+4. **Environment Variables** ekle (Environment: **Production**, isteğe bağlı Preview):
    ```
-   DATABASE_URL = <Adım 1'deki Neon bağlantısı>
-   JWT_SECRET   = <en az 32 karakterlik rastgele anahtar — randomkeygen.com>
-   TEACHER_CODE = <öğretmen kaydı için gizli kod>
+   DATABASE_URL = <Adım 1'deki Neon bağlantısı; sonunda ?sslmode=require olmalı>
+   JWT_SECRET   = <en az 32 karakterlik YENİ rastgele anahtar>
+   TEACHER_CODE = <öğretmen kaydı için gizli kod (en az 8 karakter)>
    ```
+   Güçlü bir `JWT_SECRET` üretmek için (PowerShell):
+   ```powershell
+   C:\nodejs\node.exe -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"
+   ```
+   > ⚠️ Varsayılan/yedek anahtarı kullanma: üretimde `JWT_SECRET` yoksa ya da 32 karakterden kısaysa uygulama oturum açamaz. Anahtarı kimseyle paylaşma, `.env` dosyasına yazıp commit etme.
+   > ⚠️ Bu üç değişkenin hiçbiri koda veya repoya yazılmaz; yalnızca Vercel ortam değişkenlerinde tutulur.
 
 ### ➕ Vercel ortam değişkenlerine TEACHER_CODE ekle (zorunlu)
 
@@ -67,18 +88,27 @@ Yayında öğretmen hesabı açılabilmesi için `TEACHER_CODE` **mutlaka** tan�
 > ⚠️ `TEACHER_CODE` yalnızca ortam değişkeninden gelir: veritabanına yazılmaz, uygulama/panel içinden değiştirilemez. Yayında kod tanımlı değilse öğretmen kaydı tamamen kapalıdır (403); kod tanımlıysa yalnızca doğru kodu giren kişi öğretmen hesabı açabilir.
 5. **Deploy** → ilk build ~2-3 dk sürer. Migration'lar yayın veritabanına otomatik uygulanır (`prisma migrate deploy`).
 
-## Adım 4 — Soru bankasını doldur (1 kez)
+## Adım 4 — Veritabanını doldur (1 kez, SEN çalıştıracaksın)
 
-Migration'lar şemayı kurar ama **örnek sorular** seed ile yüklenir. Yayın DB'sine bir kez çalıştır:
+Migration'lar şemayı kurar ama **müfredat/ünite/oyun modları** ve **soru bankası** seed ile yüklenir. Aşağıdaki komutları kendi bilgisayarından, yayın (Neon) veritabanına bağlanarak **bir kez** çalıştır:
 
 ```powershell
-# Yerelden, yayın DB'sine bağlanarak:
+# 0) Şema PostgreSQL istemcisi üretilmiş olmalı (Adım 2'deki: npm run use:postgres)
 cd web
-$env:DATABASE_URL = "postgresql://...neon bağlantısı..."
-C:\nodejs\npx.cmd tsx prisma/seed-questions.ts
+
+# 1) Yayın veritabanına bağlan (yalnızca bu terminal oturumu için geçerli)
+$env:DATABASE_URL = "postgresql://...neon baglantisi...?sslmode=require"
+
+# 2) Müfredat, üniteler, öğrenme çıktıları, oyun modları + demo hesaplar
+C:\nodejs\npm.cmd run db:seed
+
+# 3) Soru bankası (9-12. sınıf)
+C:\nodejs\npm.cmd run db:seed-questions
 ```
 
-> Veya Vercel **Cron/CLI** yerine basitçe: Neon **SQL Editor**'ü aç → `seed-questions.ts` dosyasındaki soruları elle ekle. (İleride yönetim paneli yapılırsa otomatikleşir.)
+- Migration'lar Vercel build'inde zaten uygulanır; burada ayrıca `prisma migrate deploy` çalıştırmana gerek yok.
+- `$env:DATABASE_URL` yalnızca o PowerShell penceresi için geçerlidir; değeri `.env` dosyasına yazıp **commit etme**.
+- Kontrol: Neon → **Tables** içinde `Unit`, `LearningOutcome` ve `Question` tabloları dolmuş olmalı (yaklaşık 304 soru).
 
 ## Adım 5 — Doğrula
 
@@ -88,6 +118,13 @@ C:\nodejs\npx.cmd tsx prisma/seed-questions.ts
 | Sağlık | `https://kimya-oyunu.vercel.app/api/health` → `status: "ok"` ve `db: "ok"` olmalı |
 | Kayıt → Harita → oyun | Tarayıcıda dene |
 
+```powershell
+# Beklenen: HTTP 200 ve gövdede "db":"ok"
+curl.exe -s https://kimya-oyunu.vercel.app/api/health
+```
+
+> ⚠️ Sağlık 503 veya `db:"hata"` dönerse `DATABASE_URL` yanlış ya da migration uygulanmamıştır: Vercel → **Deployments → Build Logs** içinde `prisma migrate deploy` çıktısını kontrol et.
+
 > Öğretmen olarak kayıt olmayı da bir kez dene: kod doğruysa hesap açılır, kod yanlışsa "Öğretmen davet kodu hatalı" hatası görünür.
 
 ## 🔒 Yayın öncesi güvenlik kontrol listesi
@@ -96,6 +133,7 @@ C:\nodejs\npx.cmd tsx prisma/seed-questions.ts
 - [ ] `TEACHER_CODE` yayında tanımlı ve yalnızca ortam değişkeninde — paylaşılan kod sızmasın
 - [ ] Neon şifresi güçlü; bağlantı `sslmode=require`
 - [ ] `.env` dosyaları repo'da YOK (gitignore kontrol)
+- [ ] `prisma/schema.prisma` PostgreSQL (`provider = "postgresql"`) — `npm run use:postgres` çalıştırıldı ve commit edildi
 - [ ] Repo **private** (öğrenci verisi için)
 - [ ] KVKK notu: kullanıcı adı + e-posta toplanıyor; gizlilik politikası eklenmeli
 - [ ] `pgpass.txt` gibi şifre dosyaları repo dışında

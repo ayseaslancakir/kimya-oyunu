@@ -9,7 +9,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql" // geliştirme: yerel PostgreSQL (scripts\pgsql-start.cmd) · yayın: Neon
   url      = env("DATABASE_URL")
 }
 

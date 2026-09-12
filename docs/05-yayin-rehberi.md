@@ -22,6 +22,7 @@ GitHub (kod) ──▶ Vercel (Next.js + API) ──▶ Neon PostgreSQL
    postgresql://neondb_owner:XXXX@ep-xxx.eu-central-1.aws.neon.tech/kimya-oyunu?sslmode=require
    ```
    > ⚠️ Bu şifre `postgres` kullanıcısına ait. Daha güvenli alternatif: **Roles** bölümünden yeni rol + şifre üret.
+   > 🔌 Neon iki adres sunar: **Pooled** (`...-pooler...`) ve **Direct**. Bu proje migration'ları build sırasında çalıştırdığı için **Direct (pooled olmayan)** adresi kullan: pooled adres `prisma migrate deploy` sırasında hata verebilir. Neon panelinde bağlantı kutusundaki **Pooled connection** anahtarını kapatınca direct adres görünür.
 
 ## Adım 2 — GitHub'a yükle (5 dk)
 
@@ -66,7 +67,7 @@ C:\git\cmd\git.exe push -u origin main
    | Install Command | `npm install` (postinstall → prisma generate otomatik) |
 4. **Environment Variables** ekle (Environment: **Production**, isteğe bağlı Preview):
    ```
-   DATABASE_URL = <Adım 1'deki Neon bağlantısı; sonunda ?sslmode=require olmalı>
+   DATABASE_URL = <Adım 1'deki DIRECT (pooled olmayan) Neon bağlantısı; sonunda ?sslmode=require olmalı>
    JWT_SECRET   = <en az 32 karakterlik YENİ rastgele anahtar>
    TEACHER_CODE = <öğretmen kaydı için gizli kod (en az 8 karakter)>
    ```
@@ -96,10 +97,10 @@ Migration'lar şemayı kurar ama **müfredat/ünite/oyun modları** ve **soru ba
 # 0) Şema PostgreSQL istemcisi üretilmiş olmalı (Adım 2'deki: npm run use:postgres)
 cd web
 
-# 1) Yayın veritabanına bağlan (yalnızca bu terminal oturumu için geçerli)
-$env:DATABASE_URL = "postgresql://...neon baglantisi...?sslmode=require"
+# 1) Yayın veritabanına bağlan (DIRECT/pooled olmayan adres; yalnızca bu terminal oturumu için geçerli)
+$env:DATABASE_URL = "postgresql://...neon direct baglanti...?sslmode=require"
 
-# 2) Müfredat, üniteler, öğrenme çıktıları, oyun modları + demo hesaplar
+# 2) Müfredat, üniteler, öğrenme çıktıları, oyun modları (demo hesap OLUŞTURMAZ)
 C:\nodejs\npm.cmd run db:seed
 
 # 3) Soru bankası (9-12. sınıf)
@@ -107,6 +108,7 @@ C:\nodejs\npm.cmd run db:seed-questions
 ```
 
 - Migration'lar Vercel build'inde zaten uygulanır; burada ayrıca `prisma migrate deploy` çalıştırmana gerek yok.
+- 🔒 Bu komut yayında **demo hesap oluşturmaz**: `demo_ogrenci` / `demo_ogretmen` yalnızca `KIMYA_DEMO_HESAPLAR=1` ile (yerel `npm run setup:local`) yüklenir. Şifresi herkesçe bilinen bir öğretmen hesabının canlıya çıkmaması için böyledir.
 - `$env:DATABASE_URL` yalnızca o PowerShell penceresi için geçerlidir; değeri `.env` dosyasına yazıp **commit etme**.
 - Kontrol: Neon → **Tables** içinde `Unit`, `LearningOutcome` ve `Question` tabloları dolmuş olmalı (yaklaşık 304 soru).
 
@@ -134,6 +136,7 @@ curl.exe -s https://kimya-oyunu.vercel.app/api/health
 - [ ] Neon şifresi güçlü; bağlantı `sslmode=require`
 - [ ] `.env` dosyaları repo'da YOK (gitignore kontrol)
 - [ ] `prisma/schema.prisma` PostgreSQL (`provider = "postgresql"`) — `npm run use:postgres` çalıştırıldı ve commit edildi
+- [ ] Canlı veritabanında `demo_ogretmen` / `demo_ogrenci` hesabı YOK (üretim seed'i oluşturmaz; `KIMYA_DEMO_HESAPLAR` kapalı)
 - [ ] Repo **private** (öğrenci verisi için)
 - [ ] KVKK notu: kullanıcı adı + e-posta toplanıyor; gizlilik politikası eklenmeli
 - [ ] `pgpass.txt` gibi şifre dosyaları repo dışında
@@ -143,7 +146,7 @@ curl.exe -s https://kimya-oyunu.vercel.app/api/health
 | Sorun | Çözüm |
 |-------|-------|
 | Build hatası: "Prisma client not generated" | Vercel'de Install Command'ın `npm install` olduğundan emin ol (postinstall çalışmalı) |
-| `P1001` migration hatası | `DATABASE_URL` doğru mu? Neon'da "connection pooling" varsa `?sslmode=require` ekle |
+| `P1001` migration hatası | `DATABASE_URL` doğru mu? Neon'un **pooled** adresini kullanıyorsan **Direct** (pooled olmayan) adrese geç |
 | Migration çakışması | `prisma migrate deploy` hatası → Neon SQL Editor'de `_prisma_migrations` tablosunu kontrol et |
 | UTF-8 sorunları | Neon projesi varsayılan UTF-8; locale sorunu olmaz (yerelde `--locale=C` kullandık) |
 | Öğretmen kaydı "kapalı" (403) | Yayında `TEACHER_CODE` tanımlı değil → Vercel → Settings → Environment Variables'a ekle ve **yeniden Deploy** et |

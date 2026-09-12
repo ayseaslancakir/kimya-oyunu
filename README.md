@@ -73,17 +73,14 @@ kimya-oyunu/
 
 ## Durum
 
-İskelet ve altı mod **oynanabilir**; soru bankasında **304 soru** var (9–12 arası her ünitede soru mevcut).
+Altı mod **oynanabilir**; soru bankasında **304 soru** var (9–12 arası her ünitede en az 15 soru).
 
-Açık kalan işler:
+Tamamlananlar:
 
-- **Skor istemciden geliyor.** Sunucu mod tavanı, süre tutarlılığı ve günlük XP sınırı uyguluyor;
-  tutarsız turlarda rozet/element ödülü verilmiyor (`web/src/lib/game.ts`).
-  Ama turun kendisi henüz sunucuda tutulmuyor — görev listesinde **S1**.
-- Soru kalitesi denetlenmedi (tekrar eden soru, hep aynı indekste doğru şık) — **İ2**.
-- Hız/bulmaca müfredat çıktısına bağlı değil; kaçış odası senaryolaşmadı — **O1, O2**.
-- Otomatik test yok — **Y1**.
+- **Tur ve skor sunucuda.** Sorular `/api/quiz/questions` ile tur olarak sabitlenir, puan `/api/quiz/answer` içinde sunucuda hesaplanır (aynı soru iki kez puan yazmaz); `/api/quiz/finish` skoru istemciden almaz (`web/src/lib/game-session.ts`).
+- **Soru bankası denetimi:** `npm run db:denetim` (tekrar metin, hep aynı indekste doğru şık, açıklamasız soru, boş çıktı, müfredat dışı kod).
+- **Uçtan uca duman testi:** `npm run test:duman` (kayıt → giriş → quiz → cevap → bitir → liderlik; hata varsa çıkış kodu 1).
+- Hız/Bulmaca/Kaçış üniteye (`?unitId=`) bağlı; kaçış odası senaryolu; Sanal Lab'de güvenlik ihlali uyarısı + gözlem özeti.
+- Öğretmen panelinde sınıf rapor blokları, haritada zayıf/orta/güçlü renk kodu, hesap silme ve şifre değiştirme.
 
-Yayın: Vercel + Neon — `docs/05-yayin-rehberi.md`.
-
-Sıradaki iş listesi ve yapay zekâ komutları: **`docs/07-yapay-zeka-gorev-listesi.md`**.
+Kalan işler ve yapay zekâ komutları: **`docs/07-yapay-zeka-gorev-listesi.md`**.

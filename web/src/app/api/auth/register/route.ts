@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { createSessionToken, hashPassword, setSessionCookie } from "@/lib/auth";
+import { isTeacherCodeConfigured, verifyTeacherCode } from "@/lib/teacher-code";
 
 const schema = z.object({
   username: z
@@ -12,6 +13,7 @@ const schema = z.object({
   email: z.string().email("Geçerli bir e-posta girin"),
   password: z.string().min(8, "Şifre en az 8 karakter olmalı").max(72),
   role: z.enum(["student", "teacher"]).default("student"),
+  teacherCode: z.string().max(200).optional(), // yalnızca öğretmen kaydında; ortam değişkeniyle karşılaştırılır
   gradeLevel: z.number().int().min(9).max(12).optional().nullable(),
 });
 
@@ -23,7 +25,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: first?.message ?? "Geçersiz veri" }, { status: 400 });
   }
 
-  const { username, email, password, role, gradeLevel } = parsed.data;
+  const { username, email, password, role, teacherCode, gradeLevel } = parsed.data;
+
+  // Öğretmen kaydı yalnızca ortam değişkenindeki (TEACHER_CODE) kodla yapılabilir.
+  // Kod veritabanında tutulmaz; panelden değiştirilemez.
+  if (role === "teacher") {
+    if (!isTeacherCodeConfigured()) {
+      return NextResponse.json(
+        {
+          error:
+            "Öğretmen kaydı bu sunucuda kapalı. Yönetici TEACHER_CODE ortam değişkenini tanımlamalı (yayında en az 8 karakter).",
+        },
+        { status: 403 }
+      );
+    }
+    if (!verifyTeacherCode(teacherCode)) {
+      return NextResponse.json({ error: "Öğretmen kodu geçersiz" }, { status: 403 });
+    }
+  }
 
   try {
     const exists = await prisma.user.findFirst({

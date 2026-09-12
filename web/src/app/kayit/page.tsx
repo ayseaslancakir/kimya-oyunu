@@ -11,6 +11,7 @@ export default function KayitPage() {
     email: "",
     password: "",
     role: "student",
+    teacherCode: "",
     gradeLevel: "",
   });
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export default function KayitPage() {
           email: form.email,
           password: form.password,
           role: form.role,
+          teacherCode: form.role === "teacher" ? form.teacherCode : undefined,
           gradeLevel: form.gradeLevel ? Number(form.gradeLevel) : null,
         }),
       });
@@ -58,7 +60,8 @@ export default function KayitPage() {
       <h1 className="text-3xl font-black">Kayıt Ol</h1>
       <p className="mt-1 text-slate-400">Kimya yolculuğuna başla — ilerlemen kaydedilsin.</p>
       <p className="mt-2 text-xs text-slate-500">
-        Öğretmen hesabı sınıf ve soru bankası içindir. Öğrenciysen “Öğrenci” seç.
+        Öğretmen hesabı sınıf ve soru bankası içindir; kayıt için okulun verdiği öğretmen kodu gerekir.
+        Öğrenciysen “Öğrenci” seç.
         Veri kullanımı: <Link href="/gizlilik" className="text-cyan-400 hover:underline">gizlilik notu</Link>.
       </p>
 
@@ -121,6 +124,23 @@ export default function KayitPage() {
             </select>
           </label>
         </div>
+
+        {form.role === "teacher" && (
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium text-slate-300">Öğretmen kodu</span>
+            <input
+              type="password"
+              value={form.teacherCode}
+              onChange={(e) => set("teacherCode", e.target.value)}
+              required
+              autoComplete="off"
+              className={inputCls}
+            />
+            <span className="text-xs text-slate-500">
+              Bu kod okul yöneticisi tarafından verilir; uygulama içinden değiştirilemez.
+            </span>
+          </label>
+        )}
 
         {error && <p className="rounded-xl bg-rose-500/10 p-3 text-sm text-rose-300">{error}</p>}
 

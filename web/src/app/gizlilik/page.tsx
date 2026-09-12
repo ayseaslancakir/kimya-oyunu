@@ -16,7 +16,13 @@ export default function GizlilikPage() {
         <li>Şifre düz metin saklanmaz.</li>
         <li>Öğretmen, yalnız kendi sınıfındaki öğrencilerin ilerleme özetini görür.</li>
         <li>18 yaş altı öğrenciler için okul / veli onayı öğretmenin sorumluluğundadır.</li>
-        <li>Hesap silme isteği için öğretmenine veya proje sahibine yaz.</li>
+        <li>
+          Hesabını ve verilerini{" "}
+          <Link href="/hesap" className="text-cyan-400 hover:underline">
+            hesap sayfasından
+          </Link>{" "}
+          silebilirsin.
+        </li>
       </ul>
       <p className="mt-6">
         <Link href="/" className="font-semibold text-cyan-400 hover:underline">

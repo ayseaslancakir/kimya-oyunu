@@ -36,6 +36,9 @@ export default function SiteNav({ session }: { session: Session }) {
       <Link href="/koleksiyon" className={linkCls} onClick={() => setAcik(false)}>
         Koleksiyon
       </Link>
+      <Link href="/hesap" className={linkCls} onClick={() => setAcik(false)}>
+        Hesap
+      </Link>
       {session.role === "teacher" && (
         <Link
           href="/panel"

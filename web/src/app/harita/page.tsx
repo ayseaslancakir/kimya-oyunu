@@ -55,6 +55,12 @@ export default async function HaritaPage() {
           <p className="mt-1 text-slate-400">
             Hoş geldin, <span className="font-semibold text-slate-200">{user?.username}</span>! Bir ünite seç ve oyna.
           </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Ünite renkleri: <span className="text-rose-300">■ zayıf (&lt;%40)</span> ·{" "}
+            <span className="text-amber-300">■ orta (%40-69)</span> ·{" "}
+            <span className="text-emerald-300">■ güçlü (%70+)</span> ·{" "}
+            <span className="text-slate-400">■ başlanmadı</span>
+          </p>
         </div>
         <div className="rounded-2xl border border-slate-700 bg-slate-900 px-5 py-3 text-right">
           <p className="text-2xl font-black text-cyan-400">{user?.xp ?? 0}</p>
@@ -133,12 +139,21 @@ export default async function HaritaPage() {
                         const ortMastery = uToplam > 0 ? Math.round(ort / uToplam) : 0;
                         const soruSayisi = unit.outcomes.reduce((a, o) => a + o._count.questions, 0);
                         const oynanabilir = soruSayisi >= 3;
+                        // Zayıf/orta/güçlü renk ayrımı (başlanmamış üniteler nötr kalır)
+                        const oynanmis = unit.outcomes.some((o) => progressMap.has(o.id));
+                        const renk = !oynanmis
+                          ? { satir: "bg-slate-800/40", rozet: "bg-slate-700/60 text-slate-400" }
+                          : ortMastery < 40
+                            ? { satir: "bg-rose-500/10 ring-1 ring-rose-500/30", rozet: "bg-rose-500/20 text-rose-200" }
+                            : ortMastery < 70
+                              ? { satir: "bg-amber-500/10 ring-1 ring-amber-500/30", rozet: "bg-amber-500/20 text-amber-200" }
+                              : { satir: "bg-emerald-500/10 ring-1 ring-emerald-500/30", rozet: "bg-emerald-500/20 text-emerald-200" };
 
                         return (
                           <div
                             key={unit.id}
                             className={`flex items-center justify-between gap-2 rounded-xl px-4 py-2.5 ${
-                              oynanabilir ? "bg-slate-800/70" : "bg-slate-800/40 opacity-75"
+                              oynanabilir ? renk.satir : "bg-slate-800/40 opacity-75"
                             }`}
                           >
                             {oynanabilir ? (
@@ -152,8 +167,10 @@ export default async function HaritaPage() {
                                   <span className="ml-2 text-xs text-cyan-500/80">{soruSayisi} soru</span>
                                 </span>
                                 <span className="flex items-center gap-3">
-                                  {ortMastery > 0 && (
-                                    <span className="text-xs text-slate-400">ustalık %{ortMastery}</span>
+                                  {oynanmis && (
+                                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${renk.rozet}`}>
+                                      ustalık %{ortMastery}
+                                    </span>
                                   )}
                                   <span className="rounded-full bg-cyan-500/20 px-2.5 py-0.5 text-xs font-bold text-cyan-300">
                                     Quiz ▶
@@ -174,13 +191,29 @@ export default async function HaritaPage() {
                               </div>
                             )}
                             {oynanabilir && (
-                              <Link
-                                href={`/oyun/kacis?unitId=${unit.id}`}
-                                title="Lab Kaçış Odası"
-                                className="rounded-lg border border-rose-500/30 px-2 py-1 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/15"
-                              >
-                                Kaçış
-                              </Link>
+                              <div className="flex items-center gap-1">
+                                <Link
+                                  href={`/oyun/hiz?unitId=${unit.id}`}
+                                  title="Hız Yarışı (bu ünite)"
+                                  className="rounded-lg border border-violet-500/30 px-2 py-1 text-xs font-semibold text-violet-300 transition hover:bg-violet-500/15"
+                                >
+                                  Hız
+                                </Link>
+                                <Link
+                                  href={`/oyun/bulmaca?unitId=${unit.id}`}
+                                  title="Bulmaca (bu ünite)"
+                                  className="rounded-lg border border-emerald-500/30 px-2 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/15"
+                                >
+                                  Bulmaca
+                                </Link>
+                                <Link
+                                  href={`/oyun/kacis?unitId=${unit.id}`}
+                                  title="Lab Kaçış Odası"
+                                  className="rounded-lg border border-rose-500/30 px-2 py-1 text-xs font-semibold text-rose-300 transition hover:bg-rose-500/15"
+                                >
+                                  Kaçış
+                                </Link>
+                              </div>
                             )}
                           </div>
                         );

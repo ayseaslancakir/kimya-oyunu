@@ -1,10 +1,12 @@
-// Sanal Laboratuvar deney tanımları (TYMM 10. sınıf, Etkileşim teması kapsamında)
+// Sanal Laboratuvar deney tanımları (TYMM 9-12. sınıf kazanımlarıyla eşleştirilmiştir)
 export type DeneyAdimi = {
   soru: string;
   secenekler: string[];
   dogru: number; // doğru seçeneğin indeksi
   aciklama: string; // doğru/yanlış sonrası açıklama
-  sonuc: string; // gözlenen sonuç metni
+  sonuc: string; // gözlenen sonuç metni (gözlem defterine eklenir)
+  // Güvenlik ihlali sayılan yanlış seçenekler: seçenek indeksi → uyarı metni
+  guvenlik?: Record<number, string>;
 };
 
 export type Deney = {
@@ -18,6 +20,87 @@ export type Deney = {
 };
 
 export const DENEYLER: Deney[] = [
+  {
+    id: "asit-seyreltme",
+    ad: "Sülfürik Asidi Güvenle Seyreltme",
+    ciktiKodu: "KİM.9.1.2",
+    amac: "Derişik sülfürik asidi seyreltirken doğru sırayı ve güvenlik kurallarını uygulamak.",
+    malzemeler: [
+      "Derişik sülfürik asit (H₂SO₄)",
+      "Saf su",
+      "Beher",
+      "Cam baget",
+      "Güvenlik gözlüğü ve eldiven",
+    ],
+    adimlar: [
+      {
+        soru: "Derişik sülfürik asidi seyreltmek için hangi sıra GÜVENLİDİR?",
+        secenekler: [
+          "Asidi azar azar suyun üzerine ekleyip karıştırmak",
+          "Suyu derişik asidin üzerine dökmek",
+          "Asit ile suyu aynı anda kaba boşaltmak",
+          "Asidi ısıtıp sonra suya dökmek",
+        ],
+        dogru: 0,
+        aciklama:
+          "Asit seyreltilirken asit suya eklenir: suyun üzerine asit dökülmez. Tersi ani ısınma ve sıçramaya yol açar.",
+        sonuc: "🧪 Asit azar azar suya eklendi; karışım ılıklaştı, sıçrama olmadı.",
+        guvenlik: {
+          1: "Su, derişik asidin üzerine dökülürse yoğun ısı açığa çıkar ve asit sıçrayabilir. Kural: suyun üzerine asit eklenir.",
+          2: "İki sıvıyı aynı anda boşaltmak ısı kontrolünü kaybettirir ve sıçrama riski yaratır.",
+          3: "Isıtılmış derişik asit çok daha tehlikelidir; asla ısıtılmaz.",
+        },
+      },
+      {
+        soru: "Seyreltme sırasında hangi koruyucu ekipman ZORUNLUDUR?",
+        secenekler: [
+          "Gözlük, eldiven ve önlük",
+          "Yalnızca eldiven",
+          "Hiçbiri; dikkatli olmak yeterlidir",
+          "Yalnızca maske",
+        ],
+        dogru: 0,
+        aciklama: "Derişik asitlerle çalışırken göz, cilt ve giysi koruması zorunludur.",
+        sonuc: "🛡️ Koruyucu ekipman kontrol edildi: gözlük, eldiven ve önlük tam.",
+        guvenlik: {
+          2: "Koruyucu ekipmansız asitle çalışmak ciddi yanık riski taşır; 'dikkatli olmak' yeterli değildir.",
+        },
+      },
+      {
+        soru: "Asit cilde temas ederse ilk yapılması gereken nedir?",
+        secenekler: [
+          "Bölgeyi bol suyla en az 15 dakika yıkamak",
+          "Krem sürüp beklemek",
+          "Üzerini kapatıp deneye devam etmek",
+          "Asidi nötralize etmek için deriye baz dökmek",
+        ],
+        dogru: 0,
+        aciklama: "Asit cilde temas ederse bölge hemen bol suyla yıkanır ve öğretmene haber verilir.",
+        sonuc: "🚿 Temas eden bölge bol suyla yıkandı ve olay kaydedildi.",
+        guvenlik: {
+          3: "Deriye doğrudan baz dökmek ısı açığa çıkarıp hasarı artırır; yapılmaması gereken tehlikeli bir davranıştır.",
+        },
+      },
+      {
+        soru: "Seyreltilmiş asit çözeltisi deney sonunda nasıl bertaraf edilir?",
+        secenekler: [
+          "Öğretmenin yönlendirdiği atık kabına dökmek",
+          "Lavaboya dökmek",
+          "Tekrar kendi şişesine boşaltmak",
+          "Bahçeye dökmek",
+        ],
+        dogru: 0,
+        aciklama: "Kimyasal atıklar lavaboya veya doğaya dökülmez; uygun atık kabında toplanır.",
+        sonuc: "♻️ Çözelti uygun atık kabında toplandı.",
+        guvenlik: {
+          1: "Asit çözeltisini lavaboya dökmek su tesisatına ve çevreye zarar verir.",
+          3: "Kimyasal atıkları doğaya dökmek çevre kirliliğine yol açar.",
+        },
+      },
+    ],
+    sonucMetni:
+      "Sonuç: Derişik asit seyreltilirken asit azar azar suyun üzerine eklenir (tersi ani ısınma ve sıçrama yapar). Koruyucu ekipman kullanılır, temas hâlinde bol suyla yıkanır ve atıklar atık kabında toplanır.",
+  },
   {
     id: "turnusol",
     ad: "Turnusol ile Asit-Baz Tayini",
@@ -36,6 +119,11 @@ export const DENEYLER: Deney[] = [
         dogru: 0,
         aciklama: "Güvenli ve doğru yöntem turnusol (pH) kâğıdıyla test etmektir. Maddeler asla tadılmaz veya koklanmaz.",
         sonuc: "🔵🔴 Turnusol kâğıtları sıvılara batırıldı. Kâğıtların renkleri değişmeye başladı!",
+        guvenlik: {
+          1: "Laboratuvarda hiçbir kimyasalın tadına bakılmaz; bu ciddi bir güvenlik ihlalidir.",
+          2: "Kimyasal buharlarını doğrudan koklamak zehirlenmeye yol açabilir; koklamak gerekiyorsa buhar el ile yönlendirilir.",
+          3: "Bilinmeyen sıvıları rastgele karıştırmak tehlikeli tepkimeler başlatabilir.",
+        },
       },
       {
         soru: "Kırmızı turnusol kâğıdı numunede MAVİYE döndü. Bu sıvı için ne söylenebilir?",
@@ -57,6 +145,11 @@ export const DENEYLER: Deney[] = [
         dogru: 0,
         aciklama: "Kimyasallarla çalışırken göz ve cilt koruması şarttır (GHS güvenlik kuralları).",
         sonuc: "🛡️ Güvenlik ekipmanların tamam — deney güvenle tamamlandı!",
+        guvenlik: {
+          1: "Laboratuvarda koşmak dökülme ve kazalara yol açar.",
+          2: "Kimyasalları açıkta bırakmak dökülme ve buhar riski oluşturur; kapakları kapalı tutulur.",
+          3: "Kimyasalları kâğıt peçeteyle karıştırmak ısı/tepkime riski taşır; cam baget kullanılır.",
+        },
       },
     ],
     sonucMetni:
@@ -87,6 +180,10 @@ export const DENEYLER: Deney[] = [
         dogru: 0,
         aciklama: "CO₂ yanmayı desteklemez; yanan kibriti söndürür. Bu klasik CO₂ testidir.",
         sonuc: "🔥 Kibrit ağza yaklaştırılınca söndü — gaz karbondioksit!",
+        guvenlik: {
+          2: "Kimyasal gazı doğrudan koklamak zehirlenme riski taşır.",
+          3: "Laboratuvarda hiçbir madde içilmez; bu ciddi bir güvenlik ihlalidir.",
+        },
       },
       {
         soru: "Bu olay kimyasal bir değişim midir? Neden?",
@@ -163,6 +260,11 @@ export const DENEYLER: Deney[] = [
         dogru: 0,
         aciklama: "Kimyasal çözeltilerle çalışırken göz koruması zorunludur.",
         sonuc: "Güvenlik ekipmanı hazır.",
+        guvenlik: {
+          1: "Numuneleri birbirine karıştırmak tehlikeli tepkimeler başlatabilir.",
+          2: "Numunelerin tadına bakmak laboratuvar kurallarına aykırıdır.",
+          3: "Elleri numuneye sokmak ciltte tahriş/yanık riski oluşturur; eldiven kullanılır.",
+        },
       },
       {
         soru: "Limon suyunun pH değeri yaklaşık 2–3 ise bu çözelti için ne söylenir?",

@@ -13,12 +13,22 @@ type TurSonucu = {
 
 type Asama = "secim" | "deney" | "sonuc";
 
+const GUVENLIK_CEZASI = 50; // güvenlik ihlali başına ek puan cezası
+
+// Puan: doğru adım +100, yanlış adım −20, güvenlik ihlali ek −50.
+function puanHesapla(dogruSayisi: number, hataSayisi: number, ihlalSayisi: number): number {
+  return Math.max(0, dogruSayisi * 100 - hataSayisi * 20 - ihlalSayisi * GUVENLIK_CEZASI);
+}
+
 export default function SanalLab() {
   const [asama, setAsama] = useState<Asama>("secim");
   const [deney, setDeney] = useState<Deney | null>(null);
   const [adim, setAdim] = useState(0);
   const [selected, setSelected] = useState<number | null>(null);
   const [dogruMu, setDogruMu] = useState<boolean | null>(null);
+  const [guvenlikUyarisi, setGuvenlikUyarisi] = useState<string | null>(null);
+  const [guvenlikIhlaliSayisi, setGuvenlikIhlaliSayisi] = useState(0);
+  const [gozlemler, setGozlemler] = useState<string[]>([]);
   const [dogru, setDogru] = useState(0);
   const [hata, setHata] = useState(0);
   const [sonuc, setSonuc] = useState<TurSonucu | null>(null);
@@ -32,17 +42,19 @@ export default function SanalLab() {
     setHata(0);
     setSelected(null);
     setDogruMu(null);
+    setGuvenlikUyarisi(null);
+    setGuvenlikIhlaliSayisi(0);
+    setGozlemler([]);
     setSonuc(null);
     startTime.current = Date.now();
     setAsama("deney");
   }
 
-  async function bitir(finalDogru: number, finalHata: number) {
+  async function bitir(finalDogru: number, finalHata: number, finalIhlal: number) {
     if (!deney) return;
     setSaving(true);
     const durationSec = Math.round((Date.now() - startTime.current) / 1000);
     const toplam = deney.adimlar.length;
-    const puan = Math.max(0, finalDogru * 100 - finalHata * 20);
     try {
       const res = await fetch("/api/quiz/finish", {
         method: "POST",
@@ -50,7 +62,7 @@ export default function SanalLab() {
         body: JSON.stringify({
           unitId: null,
           mode: "sanal_lab",
-          score: puan,
+          score: puanHesapla(finalDogru, finalHata, finalIhlal),
           accuracy: toplam > 0 ? finalDogru / toplam : 0,
           maxStreak: 0,
           durationSec,
@@ -70,18 +82,34 @@ export default function SanalLab() {
     setSelected(optIdx);
     const adimData = deney.adimlar[adim];
     const dogruCevap = optIdx === adimData.dogru;
+    // Yanlış seçenek bir güvenlik ihlaliyse uyarı gösterilir ve puan düşer.
+    const uyari = dogruCevap ? null : (adimData.guvenlik?.[optIdx] ?? null);
+
     setDogruMu(dogruCevap);
-    if (dogruCevap) setDogru((d) => d + 1);
-    else setHata((h) => h + 1);
+    setGuvenlikUyarisi(uyari);
+
+    if (dogruCevap) {
+      setDogru((d) => d + 1);
+    } else {
+      setHata((h) => h + 1);
+      if (uyari) setGuvenlikIhlaliSayisi((g) => g + 1);
+    }
+
+    // Gözlem defteri: her adımın gözlemi birikir; güvenlik ihlali ayrıca not edilir.
+    const eklenecek: string[] = [];
+    if (uyari) eklenecek.push(`🚨 Güvenlik ihlali: ${uyari}`);
+    eklenecek.push(adimData.sonuc);
+    setGozlemler((g) => [...g, ...eklenecek]);
   }
 
   function siradaki() {
     if (!deney) return;
     setSelected(null);
     setDogruMu(null);
+    setGuvenlikUyarisi(null);
     if (adim + 1 >= deney.adimlar.length) {
       setAsama("sonuc");
-      bitir(dogru, hata);
+      bitir(dogru, hata, guvenlikIhlaliSayisi);
     } else {
       setAdim((a) => a + 1);
     }
@@ -131,7 +159,9 @@ export default function SanalLab() {
         <div className="rounded-3xl border border-slate-700 bg-slate-900 p-8">
           <p className="text-5xl">{dogru === deney.adimlar.length ? "🧪" : "📋"}</p>
           <h2 className="mt-3 text-3xl font-black">Deney Tamamlandı</h2>
-          <p className="mt-2 text-sm text-slate-500">{deney.ad}</p>
+          <p className="mt-2 text-sm text-slate-500">
+            {deney.ad} · {deney.ciktiKodu}
+          </p>
 
           <div className="mt-6 grid grid-cols-3 gap-3">
             <div className="rounded-2xl bg-slate-800 p-4">
@@ -150,9 +180,27 @@ export default function SanalLab() {
             </div>
           </div>
 
+          {guvenlikIhlaliSayisi > 0 && (
+            <p className="mt-4 rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3 text-sm font-semibold text-rose-300">
+              🚨 {guvenlikIhlaliSayisi} güvenlik ihlali (−{guvenlikIhlaliSayisi * GUVENLIK_CEZASI} puan)
+            </p>
+          )}
+
+          {/* Adım adım biriken gözlemlerin özeti */}
           <div className="mt-6 rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4 text-left">
             <p className="text-sm font-bold text-cyan-300">📝 Deney Raporu</p>
-            <p className="mt-1 text-sm text-slate-300">{deney.sonucMetni}</p>
+            {gozlemler.length > 0 ? (
+              <ol className="mt-2 grid gap-1.5 text-sm text-slate-300">
+                {gozlemler.map((g, i) => (
+                  <li key={i} className={g.startsWith("🚨") ? "text-rose-300" : ""}>
+                    {i + 1}. {g}
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-1 text-sm text-slate-400">Gözlem kaydedilmedi.</p>
+            )}
+            <p className="mt-3 border-t border-cyan-500/20 pt-3 text-sm text-slate-300">{deney.sonucMetni}</p>
           </div>
 
           {sonuc?.achievements && sonuc.achievements.length > 0 && (
@@ -209,8 +257,15 @@ export default function SanalLab() {
           </p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-black text-cyan-400">{dogru * 100 - hata * 20} puan</p>
-          <p className="text-xs text-slate-400">Hata: {hata}</p>
+          <p className="text-xl font-black text-cyan-400">
+            {puanHesapla(dogru, hata, guvenlikIhlaliSayisi)} puan
+          </p>
+          <p className="text-xs text-slate-400">
+            Hata: {hata}
+            {guvenlikIhlaliSayisi > 0 && (
+              <span className="text-rose-400"> · İhlal: {guvenlikIhlaliSayisi}</span>
+            )}
+          </p>
         </div>
       </div>
 
@@ -255,11 +310,25 @@ export default function SanalLab() {
         </div>
 
         {dogruMu !== null && (
-          <div className="mt-5 rounded-2xl border border-cyan-600/50 bg-cyan-500/5 p-4">
-            <p className={`text-sm font-bold ${dogruMu ? "text-emerald-300" : "text-rose-300"}`}>
-              {dogruMu ? "✅ Doğru adım!" : "❌ Bu adım güvenli değil!"}
+          <div
+            className={`mt-5 rounded-2xl border p-4 ${
+              guvenlikUyarisi
+                ? "border-rose-600 bg-rose-500/10"
+                : "border-cyan-600/50 bg-cyan-500/5"
+            }`}
+          >
+            <p
+              className={`text-sm font-bold ${
+                guvenlikUyarisi ? "text-rose-300" : dogruMu ? "text-emerald-300" : "text-amber-300"
+              }`}
+            >
+              {guvenlikUyarisi
+                ? `🚨 GÜVENLİK İHLALİ! (−${GUVENLIK_CEZASI} puan)`
+                : dogruMu
+                  ? "✅ Doğru adım!"
+                  : "❌ Bu adım güvenli değil!"}
             </p>
-            <p className="mt-1 text-sm text-slate-300">{adimData.aciklama}</p>
+            <p className="mt-1 text-sm text-slate-300">{guvenlikUyarisi ?? adimData.aciklama}</p>
             <p className="mt-2 text-sm italic text-cyan-300">{adimData.sonuc}</p>
             <button
               onClick={siradaki}
@@ -270,6 +339,22 @@ export default function SanalLab() {
           </div>
         )}
       </div>
+
+      {/* Adım adım biriken gözlem defteri */}
+      {gozlemler.length > 0 && (
+        <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-900/50 p-4">
+          <p className="text-sm font-bold text-slate-300">
+            📝 Gözlem Defteri <span className="text-xs font-normal text-slate-500">({gozlemler.length} kayıt)</span>
+          </p>
+          <ol className="mt-2 grid max-h-48 gap-1.5 overflow-y-auto pr-1 text-sm text-slate-400">
+            {gozlemler.map((g, i) => (
+              <li key={i} className={g.startsWith("🚨") ? "text-rose-300" : ""}>
+                {i + 1}. {g}
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
     </div>
   );
 }

@@ -12,6 +12,7 @@
     "db:seed": "prisma db seed",
     "db:seed-questions": "tsx prisma/seed-questions.ts",
     "db:denetim": "node scripts/soru-denetim.mjs",
+    "test:duman": "node scripts/duman-testi.mjs",
     "db:studio": "prisma studio",
     "setup:local": "powershell -ExecutionPolicy Bypass -File scripts/setup-local-db.ps1",
     "use:postgres": "node -e \"require('fs').copyFileSync('prisma/schema.postgres.prisma','prisma/schema.prisma')\" && prisma generate",
